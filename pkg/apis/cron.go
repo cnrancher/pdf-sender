@@ -14,31 +14,36 @@ import (
 
 var (
 	SMTPRancherTo = os.Getenv("SMTP_RANCHER_TO")
+	CronJob       = os.Getenv("CRON")
+
+	yesterday string
+	today     string
+	count     int
 )
 
 func CollectInformation() {
 	c := cron.New()
 	logrus.Infof("Collect information start")
-	// cstSh, _ := time.LoadLocation("Asia/Shanghai")
-	// c.AddFunc("@every 0h0m10s", func() { fmt.Println(time.Now().In(cstSh).Format("2006-01-02 15:04:05")) })
-	c.AddFunc("@every 0h0m10s", func() {
-		excelName := DBSelect()
-		SendInformation(excelName)
+	_, err := c.AddFunc(CronJob, func() {
+		DBSelect()
+		SendInformation()
 	})
-	// c.AddFunc("CRON_TZ=Asia/Shanghai 30 09 * * *", func() {
-	// 	excelName := DBSelect()
-	// 	SendInformation(excelName)
-	// })
+	if err != nil {
+		logrus.Errorf("Failed cron add function : %v", err)
+	}
+
 	c.Start()
 }
 
-func SendInformation(excelName string) {
+func SendInformation() {
 	m := gomail.NewMessage()
 
 	m.SetAddressHeader("From", "no-reply@rancher.cn", "Rancher Labs 中国")
 	m.SetHeader("To", SMTPRancherTo)
-	m.SetHeader("Subject", excelName+"用户信息")
-	m.Attach("excel/" + excelName + ".xlsx")
+	m.SetHeader("Subject", yesterday+"用户信息")
+	m.SetBody("text/plain", `从 `+yesterday+` 08:00 ~ `+today+` 08:00，一共有 `+strconv.Itoa(count)+` 人下载了中文文档。`)
+
+	m.Attach("/tmp/" + yesterday + ".xlsx")
 
 	d := gomail.NewDialer(SMTPEndpoint, 587, SMTPUser, SMTPPwd)
 
@@ -50,11 +55,11 @@ func SendInformation(excelName string) {
 
 }
 
-func DBSelect() string {
+func DBSelect() {
 
 	xlsx := excelize.NewFile()
 
-	index := xlsx.NewSheet("用户信息表")
+	index := xlsx.GetSheetIndex("Sheet1")
 
 	data := map[string]string{
 		"A1": "名字",
@@ -63,46 +68,55 @@ func DBSelect() string {
 		"D1": "手机号",
 		"E1": "电子邮箱",
 		"F1": "保存时间",
-		"G1": "邮件发送状态",
+		"G1": "邮箱是否有效",
 	}
 
-	rows, err := DB.Query("SELECT * FROM " + dbtable + " WHERE date(savetime) = date_sub(curdate(),interval 1 day)")
+	stmt, err := DB.Prepare("SELECT * FROM user WHERE date(savetime) = date_sub(curdate(),interval 1 day)")
+	if err != nil {
+		logrus.Errorf("Failed to prepare SQL statement : %v", err)
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.Query()
 	if nil != err {
 		logrus.Errorf("Failed to query : %v", err)
 	}
 
 	defer rows.Close()
 
-	var count int = 1
+	count = 0
 	for rows.Next() {
 		count++
 		var user types.User
+		row := count + 1
 		err := rows.Scan(&user.UID, &user.Name, &user.Company, &user.Position, &user.Phone, &user.Email, &user.SaveTime, &user.Status)
 		if err != nil {
 			logrus.Errorf("Failed rows scan : %v", err)
 		}
-		data["A"+strconv.Itoa(count)] = user.Name
-		data["B"+strconv.Itoa(count)] = user.Company
-		data["C"+strconv.Itoa(count)] = user.Position
-		data["D"+strconv.Itoa(count)] = user.Phone
-		data["E"+strconv.Itoa(count)] = user.Email
-		data["F"+strconv.Itoa(count)] = user.SaveTime.Format("2006-01-02 15:04:05")
-		data["G"+strconv.Itoa(count)] = strconv.FormatBool(user.Status)
+		data["A"+strconv.Itoa(row)] = user.Name
+		data["B"+strconv.Itoa(row)] = user.Company
+		data["C"+strconv.Itoa(row)] = user.Position
+		data["D"+strconv.Itoa(row)] = user.Phone
+		data["E"+strconv.Itoa(row)] = user.Email
+		data["F"+strconv.Itoa(row)] = user.SaveTime.Format("2006-01-02 15:04:05")
+		data["G"+strconv.Itoa(row)] = strconv.FormatBool(user.Status)
 	}
 
 	for k, v := range data {
-		xlsx.SetCellValue("用户信息表", k, v)
+		xlsx.SetCellValue("Sheet1", k, v)
 	}
 
 	xlsx.SetActiveSheet(index)
 
-	d, _ := time.ParseDuration("-24h")
-
-	excelName := time.Now().Add(d).Format("2006-01-02")
-	err = xlsx.SaveAs("excel/" + excelName + ".xlsx")
+	d, err := time.ParseDuration("-24h")
+	if err != nil {
+		logrus.Errorf("Failed time parsed duration : %v", err)
+	}
+	
+	yesterday = time.Now().Add(d).Format("2006-01-02")
+	today = time.Now().Format("2006-01-02")
+	err = xlsx.SaveAs("/tmp/" + yesterday + ".xlsx")
 	if err != nil {
 		logrus.Errorf("Failed to save excel : %v", err)
 	}
-
-	return excelName
 }

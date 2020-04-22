@@ -1,15 +1,10 @@
 package server
 
 import (
-	"net/http"
 	"sync"
 
 	"golang.org/x/time/rate"
 )
-
-func okHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("alles gut"))
-}
 
 type IPRateLimiter struct {
 	ips map[string]*rate.Limiter
