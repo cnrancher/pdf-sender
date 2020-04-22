@@ -1,5 +1,4 @@
 FROM golang:1.13-alpine
-USER root
 
 ARG DAPPER_HOST_ARCH
 ENV ARCH $DAPPER_HOST_ARCH
@@ -23,6 +22,10 @@ ENV TRASH_CACHE ${DAPPER_SOURCE}/.trash-cache
 ENV HOME ${DAPPER_SOURCE}
 ENV GO111MODULE on
 WORKDIR ${DAPPER_SOURCE}
+
+RUN chmod +x ./scripts/entry
+RUN chmod +x ./scripts/ci
+RUN chmod +x ./scripts/test
 
 ENTRYPOINT ["./scripts/entry"]
 CMD ["ci"]
