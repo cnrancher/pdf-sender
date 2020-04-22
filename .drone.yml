@@ -3,11 +3,13 @@ name: default
 
 steps:
 - name: build
-  pull: default
-  image: rancher/dapper:v0.4.1
+  image: rancher/dapper
   commands:
   - dapper ci
   privileged: true
+  volumes:
+  - name: docker
+    path: /var/run/docker.sock
   when:
     event:
     - push
