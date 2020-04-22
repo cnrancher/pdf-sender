@@ -19,7 +19,7 @@ var (
 func CollectInformation() {
 	c := cron.New()
 	logrus.Infof("Collect information start")
-	c.AddFunc("@every 0h0m10s", func() {
+	c.AddFunc("CRON_TZ=Asia/Shanghai 40 16 * * *", func() {
 		excelName := DBSelect()
 		SendInformation(excelName)
 	})
