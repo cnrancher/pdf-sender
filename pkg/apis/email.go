@@ -16,18 +16,18 @@ var (
 
 	body = `您好，
 	
-	您可以通过下面的链接和密码下载 Rancher 中文文档。
-		
-	下载链接：
-		
-	https://v2.fangcloud.com/share/2bcac9426816768baa179a8435 
-		
-	访问密码：
-		
-	957f1e
-		
-	Best Regards,
-	Rancher Labs 源澈科技`
+您可以通过下面的链接和密码下载 Rancher 中文文档。
+	
+下载链接：
+	
+https://v2.fangcloud.com/share/2bcac9426816768baa179a8435 
+	
+访问密码：
+	
+957f1e
+	
+Best Regards,
+Rancher Labs 源澈科技`
 )
 
 func SendEmail(user *types.User) {
