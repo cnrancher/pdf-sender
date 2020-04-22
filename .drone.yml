@@ -8,9 +8,6 @@ steps:
   commands:
   - dapper ci
   privileged: true
-  volumes:
-  - name: docker
-    path: /var/run/docker.sock
   when:
     event:
     - push
@@ -72,6 +69,11 @@ steps:
   when:
     event:
     - tag
+
+volumes:
+- name: docker
+  host:
+    path: /var/run/docker.sock
 
 node:
   instance: agent-amd64
