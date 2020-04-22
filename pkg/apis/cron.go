@@ -19,16 +19,10 @@ var (
 func CollectInformation() {
 	c := cron.New()
 	logrus.Infof("Collect information start")
-	// cstSh, _ := time.LoadLocation("Asia/Shanghai")
-	// c.AddFunc("@every 0h0m10s", func() { fmt.Println(time.Now().In(cstSh).Format("2006-01-02 15:04:05")) })
 	c.AddFunc("@every 0h0m10s", func() {
 		excelName := DBSelect()
 		SendInformation(excelName)
 	})
-	// c.AddFunc("CRON_TZ=Asia/Shanghai 30 09 * * *", func() {
-	// 	excelName := DBSelect()
-	// 	SendInformation(excelName)
-	// })
 	c.Start()
 }
 
@@ -63,7 +57,7 @@ func DBSelect() string {
 		"D1": "手机号",
 		"E1": "电子邮箱",
 		"F1": "保存时间",
-		"G1": "邮件发送状态",
+		"G1": "邮箱是否有效",
 	}
 
 	rows, err := DB.Query("SELECT * FROM " + dbtable + " WHERE date(savetime) = date_sub(curdate(),interval 1 day)")
