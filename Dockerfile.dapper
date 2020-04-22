@@ -28,5 +28,5 @@ ENV HOME ${DAPPER_SOURCE}
 ENV GO111MODULE on
 WORKDIR ${DAPPER_SOURCE}
 
-ENTRYPOINT ["./scripts/entxxry"]
+ENTRYPOINT ["./scripts/entry"]
 CMD ["ci"]
