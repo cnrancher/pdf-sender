@@ -14,12 +14,13 @@ import (
 
 var (
 	SMTPRancherTo = os.Getenv("SMTP_RANCHER_TO")
+	CronJob = os.Getenv("CRON")
 )
 
 func CollectInformation() {
 	c := cron.New()
 	logrus.Infof("Collect information start")
-	c.AddFunc("CRON_TZ=Asia/Shanghai 40 16 * * *", func() {
+	c.AddFunc(CronJob, func() {
 		excelName := DBSelect()
 		SendInformation(excelName)
 	})

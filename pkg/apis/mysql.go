@@ -25,7 +25,7 @@ var (
 
 func ConnectMysql() {
 
-	dbinfo := strings.Join([]string{dbusername, ":", dbpassword, "@tcp(", dbhostsip, ")/", dbname, "?charset=utf8&parseTime=true&loc=Local&time_zone='%2B8:00'"}, "")
+	dbinfo := strings.Join([]string{dbusername, ":", dbpassword, "@tcp(", dbhostsip, ")/", dbname, "?charset=utf8&parseTime=true&loc=Local&time_zone='%2B16:00'"}, "")
 
 	logrus.Infof(dbinfo)
 	err := errors.New("")
