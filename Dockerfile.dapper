@@ -13,18 +13,20 @@ RUN go get -d github.com/alecthomas/gometalinter && \
     go install github.com/alecthomas/gometalinter && \
     gometalinter --install && \
     rm -rf /go/src /go/pkg
+# use go mod, and vendor exists,no need to get dependence
+#RUN go get -d github.com/rancher/trash && \
+#    git -C /go/src/github.com/rancher/trash checkout -b current v0.2.6 && \
+#    go install github.com/rancher/trash && \
+#    rm -rf /go/src /go/pkg
 
 ENV DAPPER_ENV REPO TAG DRONE_TAG
-ENV DAPPER_SOURCE /go/src/github.com/cnrancher/pdf-sender/
+ENV DAPPER_SOURCE /go/src/github.com/rancher/pdf-sender/
 ENV DAPPER_OUTPUT ./bin ./dist
 ENV DAPPER_DOCKER_SOCKET true
 ENV TRASH_CACHE ${DAPPER_SOURCE}/.trash-cache
 ENV HOME ${DAPPER_SOURCE}
 ENV GO111MODULE on
 WORKDIR ${DAPPER_SOURCE}
-
-RUN echo "xxx" > a.log
-RUN ls
 
 ENTRYPOINT ["./scripts/entry"]
 CMD ["ci"]
