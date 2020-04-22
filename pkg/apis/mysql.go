@@ -20,12 +20,11 @@ var (
 	dbusername = os.Getenv("DB_USERNAME")
 	dbpassword = os.Getenv("DB_PASSWORD")
 	dbname     = os.Getenv("DB_NAME")
-	dbtable    = os.Getenv("DB_TABLE")
 )
 
 func ConnectMysql() {
 
-	dbinfo := strings.Join([]string{dbusername, ":", dbpassword, "@tcp(", dbhostsip, ")/", dbname, "?charset=utf8&parseTime=true"}, "")
+	dbinfo := strings.Join([]string{dbusername, ":", dbpassword, "@tcp(", dbhostsip, ")/", dbname, "?charset=utf8&parseTime=true&loc=Asia%2FShanghai"}, "")
 
 	logrus.Infof(dbinfo)
 	err := errors.New("")
@@ -47,20 +46,16 @@ func ConnectMysql() {
 }
 
 func DBSave(user *types.User) {
-	tx, err := DB.Begin()
-	if nil != err {
-		logrus.Errorf("Failed to open transaction : %v", err)
-	}
 
-	stmt, err := tx.Prepare("INSERT INTO " + dbtable + "(name, company, position, phone, email, savetime, status) values(?,?,?,?,?,?,?)")
+	stmt, err := DB.Prepare("INSERT INTO user(name, company, position, phone, email, savetime, status) values(?,?,?,?,?,?,?)")
 	if nil != err {
 		logrus.Errorf("Failed to prepare SQL statement : %v", err)
 	}
+
+	defer stmt.Close()
 
 	_, err = stmt.Exec(user.Name, user.Company, user.Position, user.Phone, user.Email, time.Now(), user.Status)
 	if nil != err {
 		logrus.Errorf("Failed to executes SQL : %v", err)
 	}
-
-	tx.Commit()
 }
