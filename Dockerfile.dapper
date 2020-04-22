@@ -23,7 +23,7 @@ ENV HOME ${DAPPER_SOURCE}
 ENV GO111MODULE on
 WORKDIR ${DAPPER_SOURCE}
 
-RUN pwd
+RUN ls
 RUN chmod +x ./scripts/entry
 RUN chmod +x ./scripts/ci
 RUN chmod +x ./scripts/test
