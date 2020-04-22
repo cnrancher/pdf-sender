@@ -33,7 +33,7 @@ func SendInformation(excelName string) {
 	m.SetAddressHeader("From", "no-reply@rancher.cn", "Rancher Labs 中国")
 	m.SetHeader("To", SMTPRancherTo)
 	m.SetHeader("Subject", excelName+"用户信息")
-	m.Attach("excel/" + excelName + ".xlsx")
+	m.Attach("/tmp/" + excelName + ".xlsx")
 
 	d := gomail.NewDialer(SMTPEndpoint, 587, SMTPUser, SMTPPwd)
 
@@ -94,7 +94,7 @@ func DBSelect() string {
 	d, _ := time.ParseDuration("-24h")
 
 	excelName := time.Now().Add(d).Format("2006-01-02")
-	err = xlsx.SaveAs("excel/" + excelName + ".xlsx")
+	err = xlsx.SaveAs("/tmp/" + excelName + ".xlsx")
 	if err != nil {
 		logrus.Errorf("Failed to save excel : %v", err)
 	}
