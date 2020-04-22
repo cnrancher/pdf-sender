@@ -20,6 +20,7 @@ func RegisterAPIs() *restful.Container {
 	cors := restful.CrossOriginResourceSharing{
 		AllowedHeaders: []string{"Content-Type", "Accept"},
 		AllowedMethods: []string{"OPTIONS", "POST"},
+		AllowedDomains: []string{},
 		CookiesAllowed: false,
 		Container:      container}
 
