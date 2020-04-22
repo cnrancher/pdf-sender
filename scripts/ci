@@ -8,7 +8,7 @@ chmod +x ./validate
 chmod +x ./build
 chmod +x ./package
 
-./test
-./validate
+#./test
+#./validate
 ./build
 ./package
