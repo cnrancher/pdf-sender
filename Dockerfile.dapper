@@ -24,4 +24,4 @@ ENV GO111MODULE on
 WORKDIR ${DAPPER_SOURCE}
 
 ENTRYPOINT ["sh", "./scripts/entry"]
-CMD ["ci"]
+CMD ["sh", "ci"]
