@@ -151,7 +151,7 @@ func sendEmail(req *restful.Request, resp *restful.Response) {
 }
 
 func GenValidateCode(width int) string {
-	numeric := [10]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+	numeric := [9]byte{1, 2, 3, 4, 5, 6, 7, 8, 9}
 	r := len(numeric)
 	rand.Seed(time.Now().UnixNano())
 
