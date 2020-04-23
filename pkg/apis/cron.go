@@ -3,6 +3,7 @@ package apis
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
@@ -36,10 +37,11 @@ func CollectInformation() {
 }
 
 func SendInformation() {
-	m := gomail.NewMessage()
+	sends := strings.Split(SMTPRancherTo, ",")
 
+	m := gomail.NewMessage()
 	m.SetAddressHeader("From", "no-reply@rancher.cn", "Rancher Labs 中国")
-	m.SetHeader("To", SMTPRancherTo)
+	m.SetHeader("To", sends...)
 	m.SetHeader("Subject", yesterday+"用户信息")
 	m.SetBody("text/plain", `从 `+yesterday+` 08:00 ~ `+today+` 08:00，一共有 `+strconv.Itoa(count)+` 人下载了中文文档。`)
 
@@ -112,7 +114,7 @@ func DBSelect() {
 	if err != nil {
 		logrus.Errorf("Failed time parsed duration : %v", err)
 	}
-	
+
 	yesterday = time.Now().Add(d).Format("2006-01-02")
 	today = time.Now().Format("2006-01-02")
 	err = xlsx.SaveAs("/tmp/" + yesterday + ".xlsx")

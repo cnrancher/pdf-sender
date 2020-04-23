@@ -5,6 +5,8 @@
 - SMTP_PWD: 服务邮箱用户密码
 - SMTP_ENDPOINT: SMTP端点
 - SMTP_PORT: 服务邮箱端口
+- PDF_URL: PDF文件地址
+- PDF_PWD: PDF文件密码
 - DB_HOST_IP: 数据库地址
 - DB_USERNAME: 数据库用户名
 - DB_PASSWORD:  数据库密码
