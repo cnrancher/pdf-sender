@@ -14,17 +14,20 @@ var (
 	SMTPEndpoint = os.Getenv("SMTP_ENDPOINT")
 	SMTPPort     = os.Getenv("SMTP_PORT")
 
+	PDFUrl = os.Getenv("PDF_URL")
+	PDFPwd = os.Getenv("PDF_PWD")
+
 	body = `您好，
 	
 您可以通过下面的链接和密码下载 Rancher 中文文档。
 	
 下载链接：
 	
-https://v2.fangcloud.com/share/2bcac9426816768baa179a8435 
+` + PDFUrl + ` 
 	
 访问密码：
 	
-957f1e
+` + PDFPwd + `
 	
 Best Regards,
 Rancher Labs 源澈科技`
