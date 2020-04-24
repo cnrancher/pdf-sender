@@ -76,7 +76,7 @@ func sendCode(req *restful.Request, resp *restful.Response) {
 
 	err = user.Send()
 	if err != nil {
-		logrus.Errorf("Send SMS err:%v", err)
+		logrus.Errorf("Send SMS to phone %s err:%v", user.Phone, err)
 		err = resp.WriteErrorString(400, err.Error())
 		if err != nil {
 			logrus.Errorf("Failed to write error string err:%v", err)
@@ -137,7 +137,7 @@ func sendEmail(req *restful.Request, resp *restful.Response) {
 	}
 
 	if user.Code != code {
-		logrus.Errorf("验证码错误")
+		logrus.Errorf("手机号 %s 校验验证码错误", user.Phone)
 		err = resp.WriteErrorString(400, "验证码错误")
 		if err != nil {
 			logrus.Errorf("Failed to write error string err:%v", err)
