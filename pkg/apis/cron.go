@@ -43,7 +43,7 @@ func SendInformation() {
 	m.SetAddressHeader("From", "no-reply@rancher.cn", "Rancher Labs 中国")
 	m.SetHeader("To", sends...)
 	m.SetHeader("Subject", yesterday+"用户信息")
-	m.SetBody("text/plain", `从 `+yesterday+` 08:00 ~ `+today+` 08:00，一共有 `+strconv.Itoa(count)+` 人下载了中文文档。`)
+	m.SetBody("text/plain", yesterday+` 08:00 ~ `+today+` 08:00，一共有 `+strconv.Itoa(count)+` 人下载了中文文档。`)
 
 	m.Attach("/tmp/" + yesterday + ".xlsx")
 
