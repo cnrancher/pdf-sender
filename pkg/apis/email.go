@@ -46,10 +46,10 @@ func SendEmail(user *types.User) {
 	err := d.DialAndSend(m)
 
 	if err != nil {
-		logrus.Errorf("Send Email err:%v", err)
+		logrus.Errorf("Send Email to %s err:%v", user.Email, err)
 		user.Status = false
 	} else {
-		logrus.Infof("Send Email success")
+		logrus.Infof("Send Email to %s success", user.Email)
 		user.Status = true
 	}
 
