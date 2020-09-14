@@ -14,20 +14,29 @@ var (
 	SMTPEndpoint = os.Getenv("SMTP_ENDPOINT")
 	SMTPPort     = os.Getenv("SMTP_PORT")
 
-	PDFUrl = os.Getenv("PDF_URL")
-	PDFPwd = os.Getenv("PDF_PWD")
+	Rancher2PDFUrl = os.Getenv("Rancher2_PDF_URL")
+	Rancher2PDFPwd = os.Getenv("Rancher2_PWD")
+
+	RKEPDFUrl = os.Getenv("RKE_PDF_URL")
+	RKEPDFPwd = os.Getenv("RKE_PWD")
+
+	K3sPDFUrl = os.Getenv("K3s_PDF_URL")
+	K3sPDFPwd = os.Getenv("K3s_PWD")
+
+	OctopusPDFUrl = os.Getenv("Octopus_PDF_URL")
+	OctopusPDFPwd = os.Getenv("Octopus_PWD")
 
 	body = `您好，
 	
 您可以通过下面的链接和密码下载 Rancher 中文文档。
-	
-下载链接：
-	
-` + PDFUrl + ` 
-	
-访问密码：
-	
-` + PDFPwd + `
+
+Rancher2.x：    ` + Rancher2PDFUrl + `     访问密码： ` + Rancher2PDFPwd + `
+
+RKE：    ` + RKEPDFUrl + `     访问密码： ` + RKEPDFPwd + `
+
+K3s：    ` + K3sPDFUrl + `     访问密码： ` + K3sPDFPwd + `
+
+Octopus：    ` + OctopusPDFUrl + `     访问密码： ` + OctopusPDFPwd + `
 	
 Best Regards,
 Rancher Labs 源澈科技`
