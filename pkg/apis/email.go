@@ -26,6 +26,11 @@ var (
 	OctopusPDFUrl = os.Getenv("Octopus_PDF_URL")
 	OctopusPDFPwd = os.Getenv("Octopus_PWD")
 
+	HarvesterPDFUrl = os.Getenv("Harvester_PDF_URL")
+	HarvesterPDFPwd = os.Getenv("Harvester_PWD")
+
+	SenderEmail = os.Getenv("SENDER_EMAIL")
+
 	body = `您好，
 	
 您可以通过下面的链接和密码下载 Rancher 中文文档。
@@ -37,6 +42,8 @@ RKE：    ` + RKEPDFUrl + `     访问密码： ` + RKEPDFPwd + `
 K3s：    ` + K3sPDFUrl + `     访问密码： ` + K3sPDFPwd + `
 
 Octopus：    ` + OctopusPDFUrl + `     访问密码： ` + OctopusPDFPwd + `
+
+Harvester：    ` + HarvesterPDFUrl + `     访问密码： ` + HarvesterPDFPwd + `
 	
 Best Regards,
 Rancher Labs 源澈科技`
@@ -45,7 +52,7 @@ Rancher Labs 源澈科技`
 func SendEmail(user *types.User) {
 
 	m := gomail.NewMessage()
-	m.SetAddressHeader("From", "no-reply@rancher.cn", "Rancher Labs 中国")
+	m.SetAddressHeader("From", SenderEmail, "Rancher Labs 中国")
 	m.SetHeader("To", user.Email)
 	m.SetHeader("Subject", "Rancher 2.x 中文文档")
 	m.SetBody("text/plain", body)
