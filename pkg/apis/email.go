@@ -2,6 +2,7 @@ package apis
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/rancher/pdf-sender/pkg/types"
 	"github.com/sirupsen/logrus"
@@ -50,6 +51,10 @@ Rancher Labs 源澈科技`
 )
 
 func SendEmail(user *types.User) {
+	port, err := strconv.Atoi(SMTPPort)
+	if err != nil {
+		logrus.Errorf("smtp port err: %v", err)
+	}
 
 	m := gomail.NewMessage()
 	m.SetAddressHeader("From", SenderEmail, "Rancher Labs 中国")
@@ -57,10 +62,8 @@ func SendEmail(user *types.User) {
 	m.SetHeader("Subject", "Rancher 2.x 中文文档")
 	m.SetBody("text/plain", body)
 
-	d := gomail.NewDialer(SMTPEndpoint, 587, SMTPUser, SMTPPwd)
-
-	err := d.DialAndSend(m)
-
+	d := gomail.NewDialer(SMTPEndpoint, port, SMTPUser, SMTPPwd)
+	err = d.DialAndSend(m)
 	if err != nil {
 		logrus.Errorf("Send Email to %s err:%v", user.Email, err)
 		user.Status = false
