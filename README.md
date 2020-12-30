@@ -1,16 +1,30 @@
 # 环境变量配置：
 
 - SMTP_RANCHER_TO: 定期接收消息邮箱
+- CRON: 定时时间
+
 - SMTP_USER: 服务邮箱用户名
 - SMTP_PWD: 服务邮箱用户密码
 - SMTP_ENDPOINT: SMTP端点
 - SMTP_PORT: 服务邮箱端口
-- PDF_URL: PDF文件地址
-- PDF_PWD: PDF文件密码
+- SENDER_EMAIL: 服务邮箱端口
+
+- Rancher2_PDF_URL: Rancher2.x PDF文件地址
+- Rancher2_PWD: Rancher2.x PDF文件密码
+- RKE_PDF_URL: RKE PDF文件地址
+- RKE_PWD: RKE PDF文件密码
+- K3s_PDF_URL: K3s PDF文件地址
+- K3s_PWD: K3s PDF文件密码
+- Octopus_PDF_URL: Octopus PDF文件地址
+- Octopus_PWD: Octopus PDF文件密码
+- Harvester_PDF_URL: Harvester PDF文件地址
+- Harvester_PWD: Harvester PDF文件密码
+
 - DB_HOST_IP: 数据库地址
 - DB_USERNAME: 数据库用户名
 - DB_PASSWORD:  数据库密码
 - DB_NAME: 数据库名
+
 - ALI_REGION_ID: 阿里云区域
 - ALI_ACCESS_KEYID: 阿里云访问令牌
 - ALI_ACCESS_SECRET: 阿里云访问令牌密钥

@@ -39,15 +39,20 @@ func CollectInformation() {
 func SendInformation() {
 	sends := strings.Split(SMTPRancherTo, ",")
 
+	port, err := strconv.Atoi(SMTPPort)
+	if err != nil {
+		logrus.Errorf("smtp port err: %v", err)
+	}
+
 	m := gomail.NewMessage()
-	m.SetAddressHeader("From", "no-reply@rancher.cn", "Rancher Labs 中国")
+	m.SetAddressHeader("From", SenderEmail, "Rancher Labs 中国")
 	m.SetHeader("To", sends...)
 	m.SetHeader("Subject", yesterday+"用户信息")
 	m.SetBody("text/plain", yesterday+` 08:00 ~ `+today+` 08:00，一共有 `+strconv.Itoa(count)+` 人下载了中文文档。`)
 
 	m.Attach("/tmp/" + yesterday + ".xlsx")
 
-	d := gomail.NewDialer(SMTPEndpoint, 587, SMTPUser, SMTPPwd)
+	d := gomail.NewDialer(SMTPEndpoint, port, SMTPUser, SMTPPwd)
 
 	if err := d.DialAndSend(m); err != nil {
 		logrus.Errorf("Failed to send collect information email : %v", err)
