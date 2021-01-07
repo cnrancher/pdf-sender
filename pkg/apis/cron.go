@@ -14,20 +14,50 @@ import (
 )
 
 var (
-	SMTPRancherTo = os.Getenv("SMTP_RANCHER_TO")
-	CronJob       = os.Getenv("CRON")
+	SMTPRancherToDay = os.Getenv("SMTP_RANCHER_TO_DAY")
+	SMTPRancherToMon = os.Getenv("SMTP_RANCHER_TO_MON")
+	DayCronJob       = os.Getenv("DAY_CRON")
+	MonCronJob       = os.Getenv("MON_CRON")
+)
 
-	yesterday string
-	today     string
-	count     int
+const (
+	DaySQL = "SELECT * FROM user WHERE date(savetime) = date_sub(curdate(),interval 1 day)"
+	MonSQL = "SELECT * FROM user WHERE PERIOD_DIFF(DATE_FORMAT(NOW(),'%Y%m'),DATE_FORMAT(savetime,'%Y%m')) = 1"
 )
 
 func CollectInformation() {
 	c := cron.New()
 	logrus.Infof("Collect information start")
-	_, err := c.AddFunc(CronJob, func() {
-		DBSelect()
-		SendInformation()
+
+	_, err := c.AddFunc(DayCronJob, func() {
+		logrus.Infof("Send Information For Day")
+
+		d, err := time.ParseDuration("-24h")
+		if err != nil {
+			logrus.Errorf("Failed time parsed duration : %v", err)
+		}
+		yesterday := time.Now().Add(d).Format("2006-01-02")
+		today := time.Now().Format("2006-01-02")
+		count := DBSelect(DaySQL, yesterday)
+
+		headMessage := yesterday + "用户信息"
+		bodyMessage := yesterday + "08:00 ~ " + today + " 08:00，一共有 " + strconv.Itoa(count) + " 人下载了中文文档。"
+		SendInformation(yesterday, headMessage, bodyMessage, SMTPRancherToDay)
+	})
+	if err != nil {
+		logrus.Errorf("Failed cron add function : %v", err)
+	}
+
+	_, err = c.AddFunc(MonCronJob, func() {
+		logrus.Infof("Send Information For Mon")
+
+		now := time.Now()
+		lastMonth := now.AddDate(0, -1, -now.Day()+1).Format("2006-01")
+		count := DBSelect(MonSQL, lastMonth)
+
+		headMessage := lastMonth + "月 全部用户信息"
+		bodyMessage := lastMonth + "月一共有 " + strconv.Itoa(count) + " 人下载了中文文档。"
+		SendInformation(lastMonth, headMessage, bodyMessage, SMTPRancherToMon)
 	})
 	if err != nil {
 		logrus.Errorf("Failed cron add function : %v", err)
@@ -36,8 +66,8 @@ func CollectInformation() {
 	c.Start()
 }
 
-func SendInformation() {
-	sends := strings.Split(SMTPRancherTo, ",")
+func SendInformation(xlsxName, headMessage, bodyMessage, to string) {
+	sends := strings.Split(to, ",")
 
 	port, err := strconv.Atoi(SMTPPort)
 	if err != nil {
@@ -47,10 +77,9 @@ func SendInformation() {
 	m := gomail.NewMessage()
 	m.SetAddressHeader("From", SenderEmail, "Rancher Labs 中国")
 	m.SetHeader("To", sends...)
-	m.SetHeader("Subject", yesterday+"用户信息")
-	m.SetBody("text/plain", yesterday+` 08:00 ~ `+today+` 08:00，一共有 `+strconv.Itoa(count)+` 人下载了中文文档。`)
-
-	m.Attach("/tmp/" + yesterday + ".xlsx")
+	m.SetHeader("Subject", headMessage)
+	m.SetBody("text/plain", bodyMessage)
+	m.Attach("/tmp/" + xlsxName + ".xlsx")
 
 	d := gomail.NewDialer(SMTPEndpoint, port, SMTPUser, SMTPPwd)
 
@@ -62,12 +91,9 @@ func SendInformation() {
 
 }
 
-func DBSelect() {
-
+func DBSelect(sql, xlsxName string) int {
 	xlsx := excelize.NewFile()
-
 	index := xlsx.GetSheetIndex("Sheet1")
-
 	data := map[string]string{
 		"A1": "名字",
 		"B1": "公司",
@@ -78,7 +104,7 @@ func DBSelect() {
 		"G1": "邮箱是否有效",
 	}
 
-	stmt, err := DB.Prepare("SELECT * FROM user WHERE date(savetime) = date_sub(curdate(),interval 1 day)")
+	stmt, err := DB.Prepare(sql)
 	if err != nil {
 		logrus.Errorf("Failed to prepare SQL statement : %v", err)
 	}
@@ -88,10 +114,9 @@ func DBSelect() {
 	if nil != err {
 		logrus.Errorf("Failed to query : %v", err)
 	}
-
 	defer rows.Close()
 
-	count = 0
+	count := 0
 	for rows.Next() {
 		count++
 		var user types.User
@@ -112,18 +137,11 @@ func DBSelect() {
 	for k, v := range data {
 		xlsx.SetCellValue("Sheet1", k, v)
 	}
-
 	xlsx.SetActiveSheet(index)
 
-	d, err := time.ParseDuration("-24h")
-	if err != nil {
-		logrus.Errorf("Failed time parsed duration : %v", err)
-	}
-
-	yesterday = time.Now().Add(d).Format("2006-01-02")
-	today = time.Now().Format("2006-01-02")
-	err = xlsx.SaveAs("/tmp/" + yesterday + ".xlsx")
-	if err != nil {
+	if err = xlsx.SaveAs("/tmp/" + xlsxName + ".xlsx"); err != nil {
 		logrus.Errorf("Failed to save excel : %v", err)
 	}
+
+	return count
 }

@@ -1,7 +1,9 @@
 # 环境变量配置：
 
-- SMTP_RANCHER_TO: 定期接收消息邮箱
-- CRON: 定时时间
+- SMTP_RANCHER_TO_DAY: 每日定期接收消息邮箱
+- SMTP_RANCHER_TO_MON: 每月定期接收消息邮箱
+- DAY_CRON: 每日定时时间
+- MON_CRON: 每月定时时间
 
 - SMTP_USER: 服务邮箱用户名
 - SMTP_PWD: 服务邮箱用户密码
