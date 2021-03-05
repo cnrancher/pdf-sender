@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/rancher/pdf-sender/pkg/apis"
+	"github.com/cnrancher/pdf-sender/pkg/apis"
 
 	"github.com/sirupsen/logrus"
 )

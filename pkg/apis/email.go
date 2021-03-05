@@ -4,7 +4,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/rancher/pdf-sender/pkg/types"
+	"github.com/cnrancher/pdf-sender/pkg/types"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/gomail.v2"
 )

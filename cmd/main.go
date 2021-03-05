@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"github.com/rancher/pdf-sender/pkg/server"
+	"github.com/cnrancher/pdf-sender/pkg/server"
 	"github.com/sirupsen/logrus"
 )
 

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
-	"github.com/rancher/pdf-sender/pkg/types"
+	"github.com/cnrancher/pdf-sender/pkg/types"
 	cron "github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/gomail.v2"

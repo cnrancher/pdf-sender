@@ -10,8 +10,8 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/sirupsen/logrus"
 
+	"github.com/cnrancher/pdf-sender/pkg/types"
 	"github.com/emicklei/go-restful"
-	"github.com/rancher/pdf-sender/pkg/types"
 )
 
 func RegisterAPIs() *restful.Container {

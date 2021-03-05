@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rancher/pdf-sender/pkg/types"
+	"github.com/cnrancher/pdf-sender/pkg/types"
 	"github.com/sirupsen/logrus"
 
 	_ "github.com/go-sql-driver/mysql"
