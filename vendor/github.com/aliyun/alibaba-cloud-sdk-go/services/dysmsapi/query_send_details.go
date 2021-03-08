@@ -21,7 +21,6 @@ import (
 )
 
 // QuerySendDetails invokes the dysmsapi.QuerySendDetails API synchronously
-// api document: https://help.aliyun.com/api/dysmsapi/querysenddetails.html
 func (client *Client) QuerySendDetails(request *QuerySendDetailsRequest) (response *QuerySendDetailsResponse, err error) {
 	response = CreateQuerySendDetailsResponse()
 	err = client.DoAction(request, response)
@@ -29,8 +28,6 @@ func (client *Client) QuerySendDetails(request *QuerySendDetailsRequest) (respon
 }
 
 // QuerySendDetailsWithChan invokes the dysmsapi.QuerySendDetails API asynchronously
-// api document: https://help.aliyun.com/api/dysmsapi/querysenddetails.html
-// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) QuerySendDetailsWithChan(request *QuerySendDetailsRequest) (<-chan *QuerySendDetailsResponse, <-chan error) {
 	responseChan := make(chan *QuerySendDetailsResponse, 1)
 	errChan := make(chan error, 1)
@@ -53,8 +50,6 @@ func (client *Client) QuerySendDetailsWithChan(request *QuerySendDetailsRequest)
 }
 
 // QuerySendDetailsWithCallback invokes the dysmsapi.QuerySendDetails API asynchronously
-// api document: https://help.aliyun.com/api/dysmsapi/querysenddetails.html
-// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) QuerySendDetailsWithCallback(request *QuerySendDetailsRequest, callback func(response *QuerySendDetailsResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -77,13 +72,13 @@ func (client *Client) QuerySendDetailsWithCallback(request *QuerySendDetailsRequ
 type QuerySendDetailsRequest struct {
 	*requests.RpcRequest
 	ResourceOwnerId      requests.Integer `position:"Query" name:"ResourceOwnerId"`
-	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
-	SendDate             string           `position:"Query" name:"SendDate"`
 	PhoneNumber          string           `position:"Query" name:"PhoneNumber"`
-	BizId                string           `position:"Query" name:"BizId"`
+	SendDate             string           `position:"Query" name:"SendDate"`
 	PageSize             requests.Integer `position:"Query" name:"PageSize"`
+	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
 	CurrentPage          requests.Integer `position:"Query" name:"CurrentPage"`
 	OwnerId              requests.Integer `position:"Query" name:"OwnerId"`
+	BizId                string           `position:"Query" name:"BizId"`
 }
 
 // QuerySendDetailsResponse is the response struct for api QuerySendDetails
@@ -101,7 +96,8 @@ func CreateQuerySendDetailsRequest() (request *QuerySendDetailsRequest) {
 	request = &QuerySendDetailsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Dysmsapi", "2017-05-25", "QuerySendDetails", "dysmsapi", "openAPI")
+	request.InitWithApiInfo("Dysmsapi", "2017-05-25", "QuerySendDetails", "", "")
+	request.Method = requests.POST
 	return
 }
 

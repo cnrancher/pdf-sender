@@ -21,7 +21,6 @@ import (
 )
 
 // SendSms invokes the dysmsapi.SendSms API synchronously
-// api document: https://help.aliyun.com/api/dysmsapi/sendsms.html
 func (client *Client) SendSms(request *SendSmsRequest) (response *SendSmsResponse, err error) {
 	response = CreateSendSmsResponse()
 	err = client.DoAction(request, response)
@@ -29,8 +28,6 @@ func (client *Client) SendSms(request *SendSmsRequest) (response *SendSmsRespons
 }
 
 // SendSmsWithChan invokes the dysmsapi.SendSms API asynchronously
-// api document: https://help.aliyun.com/api/dysmsapi/sendsms.html
-// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) SendSmsWithChan(request *SendSmsRequest) (<-chan *SendSmsResponse, <-chan error) {
 	responseChan := make(chan *SendSmsResponse, 1)
 	errChan := make(chan error, 1)
@@ -53,8 +50,6 @@ func (client *Client) SendSmsWithChan(request *SendSmsRequest) (<-chan *SendSmsR
 }
 
 // SendSmsWithCallback invokes the dysmsapi.SendSms API asynchronously
-// api document: https://help.aliyun.com/api/dysmsapi/sendsms.html
-// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) SendSmsWithCallback(request *SendSmsRequest, callback func(response *SendSmsResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -76,13 +71,13 @@ func (client *Client) SendSmsWithCallback(request *SendSmsRequest, callback func
 // SendSmsRequest is the request struct for api SendSms
 type SendSmsRequest struct {
 	*requests.RpcRequest
-	SmsUpExtendCode      string           `position:"Query" name:"SmsUpExtendCode"`
 	ResourceOwnerId      requests.Integer `position:"Query" name:"ResourceOwnerId"`
+	SmsUpExtendCode      string           `position:"Query" name:"SmsUpExtendCode"`
 	SignName             string           `position:"Query" name:"SignName"`
 	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
 	PhoneNumbers         string           `position:"Query" name:"PhoneNumbers"`
-	OutId                string           `position:"Query" name:"OutId"`
 	OwnerId              requests.Integer `position:"Query" name:"OwnerId"`
+	OutId                string           `position:"Query" name:"OutId"`
 	TemplateCode         string           `position:"Query" name:"TemplateCode"`
 	TemplateParam        string           `position:"Query" name:"TemplateParam"`
 }
@@ -101,7 +96,8 @@ func CreateSendSmsRequest() (request *SendSmsRequest) {
 	request = &SendSmsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Dysmsapi", "2017-05-25", "SendSms", "dysmsapi", "openAPI")
+	request.InitWithApiInfo("Dysmsapi", "2017-05-25", "SendSms", "", "")
+	request.Method = requests.POST
 	return
 }
 

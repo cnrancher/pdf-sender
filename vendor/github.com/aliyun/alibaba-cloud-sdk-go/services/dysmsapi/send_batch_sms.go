@@ -21,7 +21,6 @@ import (
 )
 
 // SendBatchSms invokes the dysmsapi.SendBatchSms API synchronously
-// api document: https://help.aliyun.com/api/dysmsapi/sendbatchsms.html
 func (client *Client) SendBatchSms(request *SendBatchSmsRequest) (response *SendBatchSmsResponse, err error) {
 	response = CreateSendBatchSmsResponse()
 	err = client.DoAction(request, response)
@@ -29,8 +28,6 @@ func (client *Client) SendBatchSms(request *SendBatchSmsRequest) (response *Send
 }
 
 // SendBatchSmsWithChan invokes the dysmsapi.SendBatchSms API asynchronously
-// api document: https://help.aliyun.com/api/dysmsapi/sendbatchsms.html
-// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) SendBatchSmsWithChan(request *SendBatchSmsRequest) (<-chan *SendBatchSmsResponse, <-chan error) {
 	responseChan := make(chan *SendBatchSmsResponse, 1)
 	errChan := make(chan error, 1)
@@ -53,8 +50,6 @@ func (client *Client) SendBatchSmsWithChan(request *SendBatchSmsRequest) (<-chan
 }
 
 // SendBatchSmsWithCallback invokes the dysmsapi.SendBatchSms API asynchronously
-// api document: https://help.aliyun.com/api/dysmsapi/sendbatchsms.html
-// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) SendBatchSmsWithCallback(request *SendBatchSmsRequest, callback func(response *SendBatchSmsResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -76,11 +71,11 @@ func (client *Client) SendBatchSmsWithCallback(request *SendBatchSmsRequest, cal
 // SendBatchSmsRequest is the request struct for api SendBatchSms
 type SendBatchSmsRequest struct {
 	*requests.RpcRequest
-	TemplateParamJson    string           `position:"Query" name:"TemplateParamJson"`
 	ResourceOwnerId      requests.Integer `position:"Query" name:"ResourceOwnerId"`
+	TemplateParamJson    string           `position:"Query" name:"TemplateParamJson"`
 	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
-	SmsUpExtendCodeJson  string           `position:"Query" name:"SmsUpExtendCodeJson"`
 	OwnerId              requests.Integer `position:"Query" name:"OwnerId"`
+	SmsUpExtendCodeJson  string           `position:"Query" name:"SmsUpExtendCodeJson"`
 	SignNameJson         string           `position:"Query" name:"SignNameJson"`
 	TemplateCode         string           `position:"Query" name:"TemplateCode"`
 	PhoneNumberJson      string           `position:"Query" name:"PhoneNumberJson"`
@@ -100,7 +95,8 @@ func CreateSendBatchSmsRequest() (request *SendBatchSmsRequest) {
 	request = &SendBatchSmsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Dysmsapi", "2017-05-25", "SendBatchSms", "dysmsapi", "openAPI")
+	request.InitWithApiInfo("Dysmsapi", "2017-05-25", "SendBatchSms", "", "")
+	request.Method = requests.POST
 	return
 }
 
