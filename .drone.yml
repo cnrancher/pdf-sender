@@ -1,9 +1,29 @@
+type: docker
 kind: pipeline
 name: default
-  
+
+platform:
+  os: linux
+  arch: amd64
+
+clone:
+  disable: true
+
 steps:
+- name: clone
+  image: "drone/git:latest"
+  environment:
+    HTTP_PROXY: 
+      from_secret: proxy
+    HTTPS_PROXY: 
+      from_secret: proxy
+    http_proxy: 
+      from_secret: proxy
+    https_proxy: 
+      from_secret: proxy
+    NOPROXY: localhost
+    noproxy: localhost
 - name: build
-  pull: default
   image: rancher/dapper:v0.4.2
   commands:
   - dapper ci
