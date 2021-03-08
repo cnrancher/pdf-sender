@@ -14,6 +14,8 @@ import (
 	"github.com/emicklei/go-restful"
 )
 
+var CacheClient = cache.New(10*time.Minute, 20*time.Minute)
+
 func RegisterAPIs() *restful.Container {
 	container := restful.NewContainer()
 
@@ -88,8 +90,6 @@ func sendCode(req *restful.Request, resp *restful.Response) {
 	if err != nil {
 		logrus.Errorf("Failed to write error string err:%v", err)
 	}
-
-	return
 }
 
 func sendEmail(req *restful.Request, resp *restful.Response) {
@@ -146,8 +146,6 @@ func sendEmail(req *restful.Request, resp *restful.Response) {
 	}
 
 	go SendEmail(user)
-
-	return
 }
 
 func GenValidateCode(width int) string {

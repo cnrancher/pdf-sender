@@ -1,23 +1,20 @@
 package apis
 
 import (
-	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/cnrancher/pdf-sender/pkg/types"
 	cron "github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 	"gopkg.in/gomail.v2"
 )
 
 var (
-	SMTPRancherToDay = os.Getenv("SMTP_RANCHER_TO_DAY")
-	SMTPRancherToMon = os.Getenv("SMTP_RANCHER_TO_MON")
-	DayCronJob       = os.Getenv("DAY_CRON")
-	MonCronJob       = os.Getenv("MON_CRON")
+	DayCronJob string
+	MonCronJob string
 )
 
 const (
@@ -25,7 +22,9 @@ const (
 	MonSQL = "SELECT * FROM user WHERE PERIOD_DIFF(DATE_FORMAT(NOW(),'%Y%m'),DATE_FORMAT(savetime,'%Y%m')) = 1"
 )
 
-func CollectInformation() {
+func StartCorn(ctx *cli.Context) {
+	SMTPRancherToDay := ctx.StringSlice("smtp-rancher-to-day")
+	SMTPRancherToMon := ctx.StringSlice("smtp-rancher-to-mon")
 	c := cron.New()
 	logrus.Infof("Collect information start")
 
@@ -42,7 +41,7 @@ func CollectInformation() {
 
 		headMessage := yesterday + "用户信息"
 		bodyMessage := yesterday + "08:00 ~ " + today + " 08:00，一共有 " + strconv.Itoa(count) + " 人下载了中文文档。"
-		SendInformation(yesterday, headMessage, bodyMessage, SMTPRancherToDay)
+		SendInformation(yesterday, headMessage, bodyMessage, SMTPRancherToDay...)
 	})
 	if err != nil {
 		logrus.Errorf("Failed cron add function : %v", err)
@@ -57,7 +56,7 @@ func CollectInformation() {
 
 		headMessage := lastMonth + "月 全部用户信息"
 		bodyMessage := lastMonth + "月一共有 " + strconv.Itoa(count) + " 人下载了中文文档。"
-		SendInformation(lastMonth, headMessage, bodyMessage, SMTPRancherToMon)
+		SendInformation(lastMonth, headMessage, bodyMessage, SMTPRancherToMon...)
 	})
 	if err != nil {
 		logrus.Errorf("Failed cron add function : %v", err)
@@ -66,22 +65,15 @@ func CollectInformation() {
 	c.Start()
 }
 
-func SendInformation(xlsxName, headMessage, bodyMessage, to string) {
-	sends := strings.Split(to, ",")
-
-	port, err := strconv.Atoi(SMTPPort)
-	if err != nil {
-		logrus.Errorf("smtp port err: %v", err)
-	}
-
+func SendInformation(xlsxName, headMessage, bodyMessage string, sends ...string) {
 	m := gomail.NewMessage()
-	m.SetAddressHeader("From", SenderEmail, "Rancher Labs 中国")
+	m.SetAddressHeader("From", senderEmail, "Rancher Labs 中国")
 	m.SetHeader("To", sends...)
 	m.SetHeader("Subject", headMessage)
 	m.SetBody("text/plain", bodyMessage)
 	m.Attach("/tmp/" + xlsxName + ".xlsx")
 
-	d := gomail.NewDialer(SMTPEndpoint, port, SMTPUser, SMTPPwd)
+	d := gomail.NewDialer(smtpEndpoint, smtpPort, smtpUser, smtpPWD)
 
 	if err := d.DialAndSend(m); err != nil {
 		logrus.Errorf("Failed to send collect information email : %v", err)
