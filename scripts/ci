@@ -3,8 +3,12 @@ set -e
 
 cd $(dirname $0)
 
+chmod +x ./validate
 chmod +x ./build
+chmod +x ./test
 chmod +x ./package
 
+./validate
 ./build
+./test
 ./package

@@ -3,7 +3,6 @@ package types
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -23,14 +22,6 @@ type User struct {
 	SaveTime time.Time `json:"saveTime"`
 	Status   bool      `json:"status"`
 }
-
-var (
-	regionID     = os.Getenv("ALI_REGION_ID")
-	accessKeyID  = os.Getenv("ALI_ACCESS_KEYID")
-	accessSecret = os.Getenv("ALI_ACCESS_SECRET")
-	signName     = os.Getenv("ALI_SIGN_NAME")
-	templateCode = os.Getenv("ALI_TEMPLATE_CODE")
-)
 
 func (u *User) Send() error {
 	client, err := dysmsapi.NewClientWithAccessKey(regionID, accessKeyID, accessSecret)
