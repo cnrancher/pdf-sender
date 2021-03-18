@@ -115,6 +115,11 @@ var (
 			URL:      os.Getenv("Rancher2_PDF_URL"),
 			PWD:      os.Getenv("Rancher2_PWD"),
 		},
+		"rancher2.5": {
+			Name:     "rancher2.5",
+			Title:    "Rancher2.5",
+			Filename: "Rancher2.5_CN_Doc.pdf",
+		},
 		"rancher1": {
 			Name:     "rancher1",
 			Title:    "Rancher1.6",
