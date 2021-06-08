@@ -15,7 +15,7 @@ func GetFlags() []cli.Flag {
 		cli.StringSliceFlag{
 			Name:   "published-docs",
 			EnvVar: "PUBLISHED_DOCS",
-			Value:  &cli.StringSlice{"rancher2", "rancher2.5", "rke", "k3s", "octopus", "harvester"},
+			Value:  &cli.StringSlice{"rancher2", "rancher2.5", "rke", "k3s", "octopus", "harvester", "rke2"},
 		},
 
 		cli.StringFlag{
