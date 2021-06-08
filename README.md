@@ -19,6 +19,8 @@
 - Rancher2_PWD: Rancher2.x PDF 文件密码
 - RKE_PDF_URL: RKE PDF 文件地址
 - RKE_PWD: RKE PDF 文件密码
+- RKE2_PDF_URL: RKE2 PDF 文件地址
+- RKE2_PWD: RKE2 PDF 文件密码
 - K3s_PDF_URL: K3s PDF 文件地址
 - K3s_PWD: K3s PDF 文件密码
 - Octopus_PDF_URL: Octopus PDF 文件地址

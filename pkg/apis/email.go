@@ -132,6 +132,13 @@ var (
 			URL:      os.Getenv("RKE_PDF_URL"),
 			PWD:      os.Getenv("RKE_PWD"),
 		},
+		"rke2": {
+			Name:     "rke2",
+			Title:    "RKE2",
+			Filename: "rke2.pdf",
+			URL:      os.Getenv("RKE2_PDF_URL"),
+			PWD:      os.Getenv("RKE2_PWD"),
+		},
 	}
 	appliedDocuments []string
 )
