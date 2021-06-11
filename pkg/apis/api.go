@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/cnrancher/pdf-sender/pkg/types"
-	"github.com/emicklei/go-restful"
+	restful "github.com/emicklei/go-restful/v3"
 )
 
 var CacheClient = cache.New(10*time.Minute, 20*time.Minute)
