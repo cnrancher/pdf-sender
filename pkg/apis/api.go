@@ -2,7 +2,6 @@ package apis
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"strings"
 	"time"
@@ -34,25 +33,23 @@ func RegisterAPIs() *restful.Container {
 
 	container.Filter(container.OPTIONSFilter)
 
-	docxWs.Route(docxWs.POST("/sendCode").To(sendCode))
-	docxWs.Route(docxWs.POST("/sendEmail").To(sendEmail))
+	docxWs.Route(
+		docxWs.POST("/sendCode").
+			To(sendCode).
+			Param(docxWs.QueryParameter("kind", "request kind(pdf or ent)").Required(true)).Filter(kindFilter).
+			Reads(types.User{}))
+	docxWs.Route(
+		docxWs.POST("/sendEmail").
+			To(sendEmail).
+			Param(docxWs.QueryParameter("kind", "request kind(pdf or ent)").Required(true)).Filter(kindFilter).
+			Reads(types.User{}))
 	return container
 
 }
 
 func sendCode(req *restful.Request, resp *restful.Response) {
-	bodyData, err := ioutil.ReadAll(req.Request.Body)
-	if err != nil {
-		logrus.Errorf("Read req body err:%v", err)
-		err = resp.WriteErrorString(400, err.Error())
-		if err != nil {
-			logrus.Errorf("Failed to write error string err:%v", err)
-		}
-		return
-	}
-
-	user, err := types.New(bodyData)
-	if err != nil {
+	var user types.User
+	if err := req.ReadEntity(&user); err != nil {
 		logrus.Errorf("Get user err:%v", err)
 		err = resp.WriteErrorString(400, err.Error())
 		if err != nil {
@@ -63,21 +60,20 @@ func sendCode(req *restful.Request, resp *restful.Response) {
 
 	if user.Phone == "" {
 		logrus.Errorf("Phone number cannot be empty")
-		err = resp.WriteErrorString(400, "手机号不能为空")
-		if err != nil {
+		if err := resp.WriteErrorString(400, "手机号不能为空"); err != nil {
 			logrus.Errorf("Failed to write error string err:%v", err)
 		}
 		return
 	}
 
+	user.Kind = req.QueryParameter("kind")
 	user.Code = GenValidateCode(4)
 
-	logrus.Infof(user.Code)
+	logrus.Debugf(user.Code)
 
-	CacheClient.Set(user.Phone, user.Code, cache.DefaultExpiration)
+	CacheClient.Set(user.Code, &user, cache.DefaultExpiration)
 
-	err = user.Send()
-	if err != nil {
+	if err := user.Send(); err != nil {
 		logrus.Errorf("Send SMS to phone %s err:%v", user.Phone, err)
 		err = resp.WriteErrorString(400, err.Error())
 		if err != nil {
@@ -86,25 +82,14 @@ func sendCode(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	err = resp.WriteErrorString(200, "验证码发送成功")
-	if err != nil {
+	if err := resp.WriteErrorString(200, "验证码发送成功"); err != nil {
 		logrus.Errorf("Failed to write error string err:%v", err)
 	}
 }
 
 func sendEmail(req *restful.Request, resp *restful.Response) {
-	bodyData, err := ioutil.ReadAll(req.Request.Body)
-	if err != nil {
-		logrus.Errorf("Read req body err:%v", err)
-		err = resp.WriteErrorString(400, err.Error())
-		if err != nil {
-			logrus.Errorf("Failed to write error string err:%v", err)
-		}
-		return
-	}
-
-	user, err := types.New(bodyData)
-	if err != nil {
+	var user types.User
+	if err := req.ReadEntity(&user); err != nil {
 		logrus.Errorf("Get user err:%v", err)
 		err = resp.WriteErrorString(400, err.Error())
 		if err != nil {
@@ -113,39 +98,37 @@ func sendEmail(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	err = user.Validate()
-	if err != nil {
+	if err := user.Validate(); err != nil {
 		logrus.Errorf("Validate user err:%v", err)
-		err = resp.WriteErrorString(400, err.Error())
-		if err != nil {
+		if err := resp.WriteErrorString(400, err.Error()); err != nil {
 			logrus.Errorf("Failed to write error string err:%v", err)
 		}
 		return
 	}
+	user.Kind = req.QueryParameter("kind")
 
-	code, found := CacheClient.Get(user.Phone)
+	entry, found := CacheClient.Get(user.Code)
 	if found {
 		logrus.Infof("%s get the code in cache successful", user.Phone)
 	} else {
 		logrus.Errorf("%s failed to get the code in the cache", user.Phone)
-		err = resp.WriteErrorString(400, "验证码超时或不存在")
-		if err != nil {
+		if err := resp.WriteErrorString(400, "验证码超时或不存在"); err != nil {
 			logrus.Errorf("Failed to write error string err:%v", err)
 		}
 		return
-
 	}
 
-	if user.Code != code {
+	cachedUser := entry.(*types.User)
+
+	if !user.Compare(cachedUser) {
 		logrus.Errorf("手机号 %s 校验验证码错误", user.Phone)
-		err = resp.WriteErrorString(400, "验证码错误")
-		if err != nil {
+		if err := resp.WriteErrorString(400, "验证码错误"); err != nil {
 			logrus.Errorf("Failed to write error string err:%v", err)
 		}
 		return
 	}
 
-	go SendEmail(user)
+	go SendEmail(&user)
 }
 
 func GenValidateCode(width int) string {
@@ -159,4 +142,14 @@ func GenValidateCode(width int) string {
 	}
 
 	return sb.String()
+}
+
+func kindFilter(req *restful.Request, resp *restful.Response, next *restful.FilterChain) {
+	if err := types.IsKindValid(req.QueryParameter("kind")); err != nil {
+		if err = resp.WriteErrorString(400, err.Error()); err != nil {
+			logrus.Warnf("failed to write error response, %v", err)
+		}
+		return
+	}
+	next.ProcessFilter(req, resp)
 }

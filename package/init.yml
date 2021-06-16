@@ -1,0 +1,71 @@
+documents:
+  - name: k3s
+    title: K3s
+    filename: K3s.pdf
+    kind:
+      - pdf
+  - name: harvester
+    title: Harvester
+    filename: Harvester.pdf
+    kind:
+      - pdf
+  - name: octopus
+    title: Octopus
+    filename: Octopus_CN_Doc.pdf
+    kind:
+      - pdf
+  - name: rancher2
+    title: Rancher2.x
+    filename: Rancher2.x_CN_Doc.pdf
+    kind:
+      - pdf
+  - name: rancher2.5
+    title: Rancher2.5
+    filename: Rancher2.5_CN_Doc.pdf
+    kind:
+      - pdf
+  - name: rancher1
+    title: Rancher1.6
+    filename: rancher1.6.pdf
+    kind:
+      - pdf
+  - name: rke
+    title: RKE
+    filename: rke.pdf
+    kind:
+      - pdf
+  - name: rke2
+    title: RKE2
+    filename: rke2.pdf
+    kind:
+      - pdf
+  - name: rancher-ent
+    title: 白皮书
+    filename: Rancher企业版拓展功能概述及购买方式(2021).pdf
+    ossPathPrefixOverride: RancherEntPDF
+    kind:
+      - ent
+kinds:
+  pdf:
+    header: |
+      您好，
+
+      您可以通过下面的链接下载 Rancher 中文文档。
+
+    footer: |
+      Best Regards,
+      SUSE/Rancher 中国团队
+    subject: Rancher 2.x 中文文档
+    senderName: SUSE/Rancher 中国团队
+    description: "中文文档"
+  ent:
+    subject: 「Rancher 企业版拓展功能概述及购买方式」白皮书下载
+    header: |
+      您好，
+
+      您可以通过下面的链接下载 「Rancher企业版拓展功能概述及购买方式」
+    footer: |
+      Best Regards,
+      SUSE/Rancher 中国团队
+    description: "企业版白皮书"
+    senderName: SUSE/Rancher 中国团队

@@ -3,7 +3,6 @@ package types
 import (
 	"fmt"
 	"net/url"
-	"path"
 
 	oss "github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/sirupsen/logrus"
@@ -23,25 +22,25 @@ func InitAliyunClients(ctx *cli.Context) error {
 	if ossClient == nil {
 		if ossClient, err = oss.New(
 			getEndpoint(),
-			accessKeyID,
-			accessSecret,
+			Aliyun.AccessKey,
+			Aliyun.AccessSecret,
 			oss.Timeout(120, 1200),
 		); err != nil {
 			return err
 		}
 	}
 
-	if ossClient != nil && ossBucket == nil && ossBucketName != "" {
-		infoResp, err := ossClient.GetBucketInfo(ossBucketName)
+	if ossClient != nil && ossBucket == nil && Aliyun.OSSBucket != "" {
+		infoResp, err := ossClient.GetBucketInfo(Aliyun.OSSBucket)
 		if err != nil {
-			logrus.Warnf("failed to get bucket %s from oss, %v", ossBucketName, err)
+			logrus.Warnf("failed to get bucket %s from oss, %v", Aliyun.OSSBucket, err)
 			return nil
 		}
 		info = &infoResp.BucketInfo
 		logrus.Infof("Bucket => Region: %s, Name: %s, ACL: %s.", info.Location, info.Name, info.ACL)
-		ossBucket, _ = ossClient.Bucket(ossBucketName)
+		ossBucket, _ = ossClient.Bucket(Aliyun.OSSBucket)
 
-	} else if ossBucketName == "" {
+	} else if Aliyun.OSSBucket == "" {
 		logrus.Warnf("oss bucket name is not set.")
 	}
 
@@ -52,24 +51,30 @@ func InitAliyunClients(ctx *cli.Context) error {
 	return nil
 }
 
-func getObjectKey(filename string) string {
-	return fmt.Sprintf("%s/%s", ossPathPrefix, filename)
+func getObjectKey(prefix, filename string) string {
+	key := filename
+	if prefix == "" {
+		prefix = Aliyun.OSSPathPrefix
+	}
+	if prefix != "" {
+		key = prefix + "/" + key
+	}
+	return key
 }
 
 func getEndpoint() string {
-	return fmt.Sprintf("%s://%s%s.%s", ossScheme, ossRegionPrefix, regionID, aliyunAPIDomain)
+	return fmt.Sprintf("%s://%s%s.%s", Aliyun.OSSScheme, ossRegionPrefix, Aliyun.Region, aliyunAPIDomain)
 }
 
 func getBucketEndpoint() string {
-	if ossBucketCnameEndpoint != "" {
-		return ossBucketCnameEndpoint
+	if Aliyun.OSSCnameEndpoint != "" {
+		return Aliyun.OSSCnameEndpoint
 	}
-	return fmt.Sprintf("%s://%s.%s%s.%s", ossScheme, ossBucketName, ossRegionPrefix, regionID, aliyunAPIDomain)
+	return fmt.Sprintf("%s://%s.%s%s.%s", Aliyun.OSSScheme, Aliyun.OSSBucket, ossRegionPrefix, Aliyun.Region, aliyunAPIDomain)
 }
 
-func signOSSFile(filename string) (string, error) {
-	key := fmt.Sprintf("%s/%s", ossPathPrefix, filename)
-	return ossBucket.SignURL(key, oss.HTTPGet, ossSignURLExpiresSecond)
+func signOSSFile(prefix, filename string) (string, error) {
+	return ossBucket.SignURL(getObjectKey(prefix, filename), oss.HTTPGet, Aliyun.OSSSignURLExpiresSecond)
 }
 
 func IsBucketPrivate(acl string) bool {
@@ -77,29 +82,25 @@ func IsBucketPrivate(acl string) bool {
 }
 
 func GetBucketInfo() (*oss.BucketInfo, error) {
-	info, err := ossClient.GetBucketInfo(ossBucketName)
+	info, err := ossClient.GetBucketInfo(Aliyun.OSSBucket)
 	if err != nil {
 		return nil, err
 	}
 	return &info.BucketInfo, nil
 }
 
-func GetOSSFileDownloadURL(filename string, isPublic bool) string {
+func GetOSSFileDownloadURL(filename string, prefix string, isPublic bool) string {
 	if !isPublic {
-		fileURL, err := signOSSFile(filename)
+		fileURL, err := signOSSFile(prefix, filename)
 		if err != nil {
-			logrus.Warnf("failed to sign oss object of %s in bucket %s", getObjectKey(filename), ossBucketName)
+			logrus.Warnf("failed to sign oss object of %s in bucket %s", getObjectKey(prefix, filename), Aliyun.OSSBucket)
 		} else {
 			return fileURL
 		}
 	}
-	filename = url.PathEscape(filename)
-	if ossPathPrefix != "" {
-		filename = path.Join(ossPathPrefix, filename)
-	}
-	return fmt.Sprintf("%s/%s", getBucketEndpoint(), filename)
+	return fmt.Sprintf("%s/%s", getBucketEndpoint(), getObjectKey(prefix, url.PathEscape(filename)))
 }
 
-func IsObjectExists(filename string) (bool, error) {
-	return ossBucket.IsObjectExist(getObjectKey(filename))
+func IsObjectExists(prefixOverride, filename string) (bool, error) {
+	return ossBucket.IsObjectExist(getObjectKey(prefixOverride, filename))
 }
