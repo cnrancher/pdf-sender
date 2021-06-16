@@ -12,24 +12,16 @@ import (
 
 var DB *sql.DB
 
-var (
-	dbhostip,
-	dbusername,
-	dbpassword,
-	dbname string
-	dbport int
-)
-
 func ConnectMysql() error {
 	dbinfo := fmt.Sprintf(
 		"%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=true",
-		dbusername,
-		dbpassword,
-		dbhostip,
-		dbport,
-		dbname,
+		types.DB.Username,
+		types.DB.Password,
+		types.DB.HostIP,
+		types.DB.Port,
+		types.DB.Name,
 	)
-	logrus.Infof("Connecting mysql with %s", dbinfo)
+	logrus.Debugf("Connecting mysql with %s", dbinfo)
 	var err error
 
 	DB, err = sql.Open("mysql", dbinfo)
@@ -49,14 +41,14 @@ func ConnectMysql() error {
 }
 
 func DBSave(user *types.User) {
-	stmt, err := DB.Prepare("INSERT INTO user(name, company, position, phone, email, savetime, status) values(?,?,?,?,?,?,?)")
+	stmt, err := DB.Prepare("INSERT INTO user(name, company, position, phone, email, savetime, status, kind) values(?,?,?,?,?,?,?,?)")
 	if nil != err {
 		logrus.Errorf("Failed to prepare SQL statement : %v", err)
 	}
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(user.Name, user.Company, user.Position, user.Phone, user.Email, time.Now(), user.Status)
+	_, err = stmt.Exec(user.Name, user.Company, user.Position, user.Phone, user.Email, time.Now(), user.Status, user.Kind)
 	if nil != err {
 		logrus.Errorf("Failed to executes SQL : %v", err)
 	}

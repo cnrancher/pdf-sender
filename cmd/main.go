@@ -16,7 +16,6 @@ import (
 
 var (
 	VERSION = "v0.0.0-dev"
-	port    int
 )
 
 func main() {
@@ -25,23 +24,19 @@ func main() {
 	app.Version = VERSION
 	app.Usage = "Send pdf documents to our lovely users."
 	app.Flags = []cli.Flag{
-		cli.IntFlag{
-			Name:        "port,p",
-			EnvVar:      "HTTP_PORT",
-			Value:       8080,
-			Destination: &port,
-		},
 		cli.BoolFlag{
-			Name: "debug",
+			Name:  "debug",
+			Usage: "Enable Debug log for pdf sender",
+		},
+		cli.StringFlag{
+			Name:     "config-file,f",
+			Required: true,
+			EnvVar:   "CONFIG_FILE",
+			Value:    "/etc/pdf-sender.yml",
 		},
 	}
-	app.Flags = append(app.Flags, apis.GetFlags()...)
-	app.Flags = append(app.Flags, types.GetFlags()...)
-	app.Action = func(ctx *cli.Context) error {
-		logrus.Infof("server running, listening at :%d\n", port)
-		return http.ListenAndServe(fmt.Sprintf(":%d", port), limiter.IPLimitMiddleware(apis.RegisterAPIs().ServeMux))
-	}
-	app.Before = before
+	app.Commands = append(app.Commands, types.GetConfigCommand())
+	app.Commands = append(app.Commands, getRunCommand())
 
 	if err := app.Run(os.Args); err != nil {
 		logrus.Fatal(err)
@@ -49,23 +44,43 @@ func main() {
 }
 
 func before(ctx *cli.Context) error {
-	if ctx.Bool("debug") {
+	if err := types.MergeConfig(ctx); err != nil {
+		return err
+	}
+
+	if ctx.GlobalBool("debug") {
 		logrus.SetLevel(logrus.DebugLevel)
-	}
-
-	if err := types.InitAliyunClients(ctx); err != nil {
-		return err
-	}
-
-	if err := apis.InitEmailBody(ctx); err != nil {
-		return err
 	}
 
 	if err := apis.ConnectMysql(); err != nil {
 		return err
 	}
 
-	apis.StartCorn(ctx)
+	if err := types.InitAliyunClients(ctx); err != nil {
+		return err
+	}
 
-	return nil
+	if err := types.InitEmailBody(ctx); err != nil {
+		return err
+	}
+
+	if err := types.Validate(); err != nil {
+		return err
+	}
+
+	return apis.StartCorn(ctx)
+}
+
+func getRunCommand() cli.Command {
+	cmd := cli.Command{
+		Name:  "run",
+		Usage: "Run pdf sender server",
+		Flags: types.GetFlags(),
+		Action: func(ctx *cli.Context) error {
+			logrus.Infof("server running, listening at :%d\n", types.Config.Port)
+			return http.ListenAndServe(fmt.Sprintf(":%d", types.Config.Port), limiter.IPLimitMiddleware(apis.RegisterAPIs().ServeMux))
+		},
+		Before: before,
+	}
+	return cmd
 }

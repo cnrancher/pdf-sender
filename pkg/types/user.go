@@ -21,10 +21,11 @@ type User struct {
 	Code     string    `json:"code"`
 	SaveTime time.Time `json:"saveTime"`
 	Status   bool      `json:"status"`
+	Kind     string    `json:"-"`
 }
 
 func (u *User) Send() error {
-	client, err := dysmsapi.NewClientWithAccessKey(regionID, accessKeyID, accessSecret)
+	client, err := dysmsapi.NewClientWithAccessKey(Aliyun.Region, Aliyun.AccessKey, Aliyun.AccessSecret)
 	if err != nil {
 		return fmt.Errorf("使用密钥创建客户端失败:%v", err)
 	}
@@ -38,8 +39,8 @@ func (u *User) Send() error {
 
 	request.Scheme = "https"
 	request.PhoneNumbers = u.Phone
-	request.SignName = signName
-	request.TemplateCode = templateCode
+	request.SignName = Aliyun.SMSSignName
+	request.TemplateCode = Aliyun.SMSTemplateCode
 	request.TemplateParam = fmt.Sprintf(`{"code":"%d"}`, intCode)
 
 	response, err := client.SendSms(request)
@@ -76,4 +77,11 @@ func (u *User) Validate() error {
 	}
 
 	return nil
+}
+
+func (u *User) Compare(target *User) bool {
+	return u.Code == target.Code &&
+		u.Phone == target.Phone &&
+		u.Name == target.Name &&
+		u.Kind == target.Kind
 }
