@@ -82,6 +82,5 @@ func (u *User) Validate() error {
 func (u *User) Compare(target *User) bool {
 	return u.Code == target.Code &&
 		u.Phone == target.Phone &&
-		u.Name == target.Name &&
 		u.Kind == target.Kind
 }
