@@ -140,7 +140,7 @@ func DBSelect(sql, xlsxName string) (int, string) {
 		count++
 		var user types.User
 		row := count + 1
-		err := rows.Scan(&user.UID, &user.Name, &user.Company, &user.Position, &user.Phone, &user.Email, &user.SaveTime, &user.Status)
+		err := rows.Scan(&user.Name, &user.Company, &user.Position, &user.Phone, &user.Email, &user.SaveTime, &user.Status, &user.Kind)
 		if err != nil {
 			logrus.Errorf("Failed rows scan : %v", err)
 		}
