@@ -69,3 +69,25 @@ kinds:
       SUSE/Rancher 中国团队
     description: "企业版白皮书"
     senderName: SUSE/Rancher 中国团队
+register:
+  subject: "新客户上门啦"
+  template: |
+    亲爱的Marketing Team：
+
+      以下客户在我们的官网使用了 {{ .kind }} 功能，请及时联系噢！
+
+      姓名：{{ .user.Name }}
+      电话：{{ .user.Phone }}
+      邮箱：{{ .user.Email }}
+      城市：{{ .user.City }}
+      公司：{{ .user.Company }}
+      部门：{{ .user.Department }}
+      职位：{{ .user.Position }}
+
+    以上
+    From pdf-sender
+  receivers: {}
+  kinds:
+    contact: "联系我们"
+    demo: “需要Demo”
+    pricing: "咨询价格"
