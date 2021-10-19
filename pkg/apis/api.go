@@ -6,14 +6,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/patrickmn/go-cache"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 
+	"github.com/cnrancher/pdf-sender/pkg/email"
 	"github.com/cnrancher/pdf-sender/pkg/types"
 	restful "github.com/emicklei/go-restful/v3"
 )
 
-var CacheClient = cache.New(10*time.Minute, 20*time.Minute)
+type validateFunc func(string) error
 
 func RegisterAPIs() *restful.Container {
 	container := restful.NewContainer()
@@ -36,20 +37,26 @@ func RegisterAPIs() *restful.Container {
 	docxWs.Route(
 		docxWs.POST("/sendCode").
 			To(sendCode).
-			Param(docxWs.QueryParameter("kind", "request kind(pdf or ent)").Required(true)).Filter(kindFilter).
-			Reads(types.User{}))
+			Param(docxWs.QueryParameter("kind", "request kind(pdf/ent/demo/pricing/contact)").Required(true)).Filter(kindFilter("")).
+			Reads(types.Code{}))
 	docxWs.Route(
 		docxWs.POST("/sendEmail").
 			To(sendEmail).
-			Param(docxWs.QueryParameter("kind", "request kind(pdf or ent)").Required(true)).Filter(kindFilter).
+			Param(docxWs.QueryParameter("kind", "request kind(pdf or ent)").Required(true)).Filter(kindFilter("pdf")).
 			Reads(types.User{}))
+	docxWs.Route(
+		docxWs.POST("/register").
+			Param(docxWs.QueryParameter("kind", "request kind(demo, pricing or contact)").Required(true)).
+			Filter(kindFilter("register")).
+			Reads(types.User{}).
+			To(register))
 	return container
 
 }
 
 func sendCode(req *restful.Request, resp *restful.Response) {
-	var user types.User
-	if err := req.ReadEntity(&user); err != nil {
+	var code types.Code
+	if err := req.ReadEntity(&code); err != nil {
 		logrus.Errorf("Get user err:%v", err)
 		err = resp.WriteErrorString(400, err.Error())
 		if err != nil {
@@ -58,7 +65,7 @@ func sendCode(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	if user.Phone == "" {
+	if code.Phone == "" {
 		logrus.Errorf("Phone number cannot be empty")
 		if err := resp.WriteErrorString(400, "手机号不能为空"); err != nil {
 			logrus.Errorf("Failed to write error string err:%v", err)
@@ -66,15 +73,13 @@ func sendCode(req *restful.Request, resp *restful.Response) {
 		return
 	}
 
-	user.Kind = req.QueryParameter("kind")
-	user.Code = GenValidateCode(4)
+	code.Kind = req.QueryParameter("kind")
+	code.Code = GenValidateCode(4)
 
-	logrus.Debugf(user.Code)
+	logrus.Debugf(code.Code)
 
-	CacheClient.Set(user.Code, &user, cache.DefaultExpiration)
-
-	if err := user.Send(); err != nil {
-		logrus.Errorf("Send SMS to phone %s err:%v", user.Phone, err)
+	if err := code.SaveAndSend(); err != nil {
+		logrus.Errorf("Send SMS to phone %s err:%v", code.Phone, err)
 		err = resp.WriteErrorString(400, err.Error())
 		if err != nil {
 			logrus.Errorf("Failed to write error string err:%v", err)
@@ -97,38 +102,43 @@ func sendEmail(req *restful.Request, resp *restful.Response) {
 		}
 		return
 	}
-
-	if err := user.Validate(); err != nil {
+	user.Kind = req.QueryParameter("kind")
+	code, err := user.Validate()
+	if err != nil {
 		logrus.Errorf("Validate user err:%v", err)
 		if err := resp.WriteErrorString(400, err.Error()); err != nil {
 			logrus.Errorf("Failed to write error string err:%v", err)
 		}
 		return
 	}
-	user.Kind = req.QueryParameter("kind")
 
-	entry, found := CacheClient.Get(user.Code)
-	if found {
-		logrus.Infof("%s get the code in cache successful", user.Phone)
-	} else {
-		logrus.Errorf("%s failed to get the code in the cache", user.Phone)
-		if err := resp.WriteErrorString(400, "验证码超时或不存在"); err != nil {
-			logrus.Errorf("Failed to write error string err:%v", err)
+	if err := types.DBInstance.Transaction(func(tx *gorm.DB) error {
+		if err := user.Save(tx).Error; err != nil {
+			return err
 		}
+		if err := tx.Model(code).UpdateColumn("state", "used").Error; err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		resp.WriteErrorString(400, "数据库更新失败")
 		return
 	}
 
-	cachedUser := entry.(*types.User)
-
-	if !user.Compare(cachedUser) {
-		logrus.Errorf("手机号 %s 校验验证码错误", user.Phone)
-		if err := resp.WriteErrorString(400, "验证码错误"); err != nil {
-			logrus.Errorf("Failed to write error string err:%v", err)
-		}
+	content, err := getContentFromUser(&user)
+	if err != nil {
+		logrus.Warnf("failed to get email content for user %s(%s), %v", user.Name, user.Phone, err)
+		return
+	}
+	if err := email.SendEmail(content); err != nil {
+		logrus.Warnf("failed to send email for user %s(%s), %v", user.Name, user.Phone, err)
 		return
 	}
 
-	go SendEmail(&user)
+	user.Status = true
+	if err := user.Save(nil).Error; err != nil {
+		logrus.Warnf("failed to update user %d state, %v", user.UID, err)
+	}
 }
 
 func GenValidateCode(width int) string {
@@ -144,12 +154,37 @@ func GenValidateCode(width int) string {
 	return sb.String()
 }
 
-func kindFilter(req *restful.Request, resp *restful.Response, next *restful.FilterChain) {
-	if err := types.IsKindValid(req.QueryParameter("kind")); err != nil {
-		if err = resp.WriteErrorString(400, err.Error()); err != nil {
-			logrus.Warnf("failed to write error response, %v", err)
+func kindFilter(requestType string) func(*restful.Request, *restful.Response, *restful.FilterChain) {
+	return func(req *restful.Request, resp *restful.Response, next *restful.FilterChain) {
+		if err := types.IsKindValid(requestType, req.QueryParameter("kind")); err != nil {
+			if err = resp.WriteErrorString(400, err.Error()); err != nil {
+				logrus.Warnf("failed to write error response, %v", err)
+			}
+			return
 		}
-		return
+		next.ProcessFilter(req, resp)
 	}
-	next.ProcessFilter(req, resp)
+}
+
+func getContentFromUser(user *types.User) (*email.Content, error) {
+	rtn := &email.Content{
+		To: map[string]string{},
+		CC: map[string]string{},
+	}
+	subject, sender, err := email.GetSenderNameAndSubjectByKind(user.Kind)
+	if err != nil {
+		logrus.Warnf("failed to send email of kind %s for user %v, %v", user.Kind, *user, err)
+		return nil, err
+	}
+	rtn.Subject = subject
+	rtn.To[user.Email] = ""
+	rtn.From = types.Email.Sender
+	rtn.FromAlias = sender
+	body, err := email.GetBodyByKind(user.Kind)
+	if err != nil {
+		logrus.Warnf("failed to send email of kind %s for user %v, %v", user.Kind, *user, err)
+		return nil, err
+	}
+	rtn.Body = body
+	return rtn, nil
 }

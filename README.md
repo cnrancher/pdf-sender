@@ -94,28 +94,7 @@ kinds:
 
 ## 建表 SQL 语句
 
-当前版本建表语句如下：
-
-```sql
-CREATE TABLE `user` (
-  `uid` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
-  `company` varchar(255) DEFAULT NULL,
-  `position` varchar(255) DEFAULT NULL,
-  `phone` varchar(255) DEFAULT NULL,
-  `email` varchar(255) DEFAULT NULL,
-  `savetime` datetime DEFAULT NULL,
-  `status` tinyint(1) DEFAULT NULL,
-  `kind` varchar(20) DEFAULT NULL,
-  PRIMARY KEY (`uid`)
-) ENGINE=InnoDB AUTO_INCREMENT=77 DEFAULT CHARSET=utf8mb4;
-```
-
-如从 v0.2.x 升级到 v0.3.0，则需要对表进行更变
-
-```sql
-ALTER TABLE pdf.`user` ADD kind varchar(20) NULL;
-```
+从 v0.4 版本开始，sql ddl 由 gorm 框架自动建立并更新表结构。
 
 ## 后续版本规划
 
