@@ -3,57 +3,26 @@ package types
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/dysmsapi"
+	"gorm.io/gorm"
 )
 
 type User struct {
-	UID      int       `json:"uid"`
-	Name     string    `json:"name"`
-	Company  string    `json:"company"`
-	Position string    `json:"position"`
-	Email    string    `json:"email"`
-	Phone    string    `json:"phone"`
-	Code     string    `json:"code"`
-	SaveTime time.Time `json:"saveTime"`
-	Status   bool      `json:"status"`
-	Kind     string    `json:"-"`
-}
-
-func (u *User) Send() error {
-	client, err := dysmsapi.NewClientWithAccessKey(Aliyun.Region, Aliyun.AccessKey, Aliyun.AccessSecret)
-	if err != nil {
-		return fmt.Errorf("使用密钥创建客户端失败:%v", err)
-	}
-
-	intCode, err := strconv.Atoi(u.Code)
-	if err != nil {
-		return fmt.Errorf("验证码转换类型失败:%v", err)
-	}
-
-	request := dysmsapi.CreateSendSmsRequest()
-
-	request.Scheme = "https"
-	request.PhoneNumbers = u.Phone
-	request.SignName = Aliyun.SMSSignName
-	request.TemplateCode = Aliyun.SMSTemplateCode
-	request.TemplateParam = fmt.Sprintf(`{"code":"%d"}`, intCode)
-
-	response, err := client.SendSms(request)
-	if err != nil {
-		return fmt.Errorf("发送短信错误:%v", err)
-	}
-
-	if response.Code != "OK" {
-		return fmt.Errorf("Failed to send Aliyun SMS message:%s", response.Message)
-	}
-
-	logrus.Infof("发送成功")
-	return nil
+	UID        int       `json:"uid" gorm:"primaryKey"`
+	Name       string    `json:"name" gorm:"size:255"`
+	Company    string    `json:"company" gorm:"size:255"`
+	Position   string    `json:"position" gorm:"size:255"`
+	Email      string    `json:"email" gorm:"size:255"`
+	Phone      string    `json:"phone" gorm:"size:255"`
+	Code       string    `json:"code" gorm:"-"`
+	SaveTime   time.Time `json:"saveTime" gorm:"column:savetime;autoUpdateTime:milli"`
+	Status     bool      `json:"status"`
+	Kind       string    `json:"-" gorm:"size:20"`
+	City       string    `json:"city,omitempty" gorm:"size:255"`
+	Department string    `json:"department,omitempty" gorm:"size:255"`
 }
 
 func New(bodyData []byte) (*User, error) {
@@ -65,22 +34,55 @@ func New(bodyData []byte) (*User, error) {
 	return &user, nil
 }
 
-func (u *User) Validate() error {
+func (u *User) Validate() (*Code, error) {
 	if u.Code == "" {
-		return fmt.Errorf("验证码不能为空")
+		return nil, fmt.Errorf("验证码不能为空")
 	}
 	if u.Phone == "" {
-		return fmt.Errorf("手机号不能为空")
+		return nil, fmt.Errorf("手机号不能为空")
 	}
 	if u.Email == "" {
-		return fmt.Errorf("电子邮箱不能为空")
+		return nil, fmt.Errorf("电子邮箱不能为空")
+	}
+	if u.Kind == "" {
+		return nil, fmt.Errorf("未支持表单类型")
 	}
 
-	return nil
+	rows, err := DBInstance.Model(&Code{}).Where("phone = ? AND code = ? AND kind = ? AND state = ?", u.Phone, u.Code, u.Kind, "active").Order("request_time desc").Rows()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to query codes")
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var code Code
+		if err := DBInstance.ScanRows(rows, &code); err != nil {
+			return nil, errors.Wrap(err, "failed to decode row")
+		}
+		if time.Now().Sub(code.RequestTime) < 10*time.Minute {
+			logrus.Debugf("code uid %d %s matching user %d", code.UID, code.Code, u.UID)
+			return &code, nil
+		}
+	}
+	return nil, fmt.Errorf("验证码不合法")
 }
 
 func (u *User) Compare(target *User) bool {
 	return u.Code == target.Code &&
 		u.Phone == target.Phone &&
 		u.Kind == target.Kind
+}
+
+func (u *User) Save(tx *gorm.DB) *gorm.DB {
+	db := DBInstance
+	if tx != nil {
+		db = tx
+	}
+	if u.UID == 0 {
+		return db.Create(u)
+	}
+	return db.Save(u)
+}
+
+func (*User) TableName() string {
+	return "user"
 }

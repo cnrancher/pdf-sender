@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
+	"github.com/cnrancher/pdf-sender/pkg/email"
 	"github.com/cnrancher/pdf-sender/pkg/types"
 	"github.com/pkg/errors"
-	cron "github.com/robfig/cron/v3"
+	cronv3 "github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
-	"gopkg.in/gomail.v2"
+	"gorm.io/gorm"
 )
 
 var rows = []string{
@@ -37,13 +38,23 @@ const (
 	monthFormat = "2006-01"
 )
 
+type cronRunner struct {
+	cronDB *gorm.DB
+	cron   *cronv3.Cron
+}
+
 func StartCorn(ctx *cli.Context) error {
 	var err error
-	c := cron.New()
+	runner := cronRunner{
+		cronDB: types.DBInstance.Session(&gorm.Session{
+			PrepareStmt: true,
+		}),
+		cron: cronv3.New(),
+	}
 	logrus.Infof("Collect information start")
 
 	if len(types.Email.DailyReceiver) != 0 {
-		_, err = c.AddFunc(types.Email.CRONDaily, func() {
+		_, err = runner.cron.AddFunc(types.Email.CRONDaily, func() {
 			logrus.Infof("Send Information For Day")
 
 			d, err := time.ParseDuration("-24h")
@@ -52,12 +63,25 @@ func StartCorn(ctx *cli.Context) error {
 			}
 			yesterday := time.Now().Add(d).Format(dayFormat)
 			today := time.Now().Format(dayFormat)
-			count, filename := DBSelect(DaySQL, yesterday)
+			count, filename := runner.DBSelect(DaySQL, yesterday)
 			defer os.Remove(filename)
 
 			headMessage := fmt.Sprintf("%s 用户信息", yesterday)
 			bodyMessage := fmt.Sprintf("%s 08:00 ~ %s 08:00，一共有 %d 人下载了中文文档以及白皮书。\n", yesterday, today, count)
-			SendInformation(filename, headMessage, bodyMessage, types.Email.DailyReceiver...)
+			toMap := map[string]string{}
+			for _, addr := range types.Email.MonthlyReceiver {
+				toMap[addr] = ""
+			}
+			if err := email.SendEmail(&email.Content{
+				Subject:   headMessage,
+				Body:      bodyMessage,
+				Attach:    filename,
+				To:        toMap,
+				From:      types.Email.Sender,
+				FromAlias: "Rancher Labs 中国",
+			}); err != nil {
+				logrus.Warnf("failed to send monthly email")
+			}
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed cron add function")
@@ -65,49 +89,45 @@ func StartCorn(ctx *cli.Context) error {
 	}
 
 	if len(types.Email.MonthlyReceiver) != 0 {
-		_, err = c.AddFunc(types.Email.CRONMonthly, func() {
+		_, err = runner.cron.AddFunc(types.Email.CRONMonthly, func() {
 			logrus.Infof("Send Information For Mon")
 
 			now := time.Now()
 			lastMonth := now.AddDate(0, -1, -now.Day()+1).Format(monthFormat)
-			count, filename := DBSelect(MonSQL, lastMonth)
+			count, filename := runner.DBSelect(MonSQL, lastMonth)
+			defer os.Remove(filename)
 
 			headMessage := fmt.Sprintf("%s月 全部用户信息", lastMonth)
 			bodyMessage := fmt.Sprintf("%s月一共有 %d 人下载了中文文档以及白皮书。\n", lastMonth, count)
-			SendInformation(filename, headMessage, bodyMessage, types.Email.MonthlyReceiver...)
+			toMap := map[string]string{}
+			for _, addr := range types.Email.MonthlyReceiver {
+				toMap[addr] = ""
+			}
+			if err := email.SendEmail(&email.Content{
+				Subject:   headMessage,
+				Body:      bodyMessage,
+				Attach:    filename,
+				To:        toMap,
+				From:      types.Email.Sender,
+				FromAlias: "Rancher Labs 中国",
+			}); err != nil {
+				logrus.Warnf("failed to send monthly email")
+			}
 		})
 		if err != nil {
 			return errors.Wrap(err, "Failed cron add function")
 		}
 	}
 
-	c.Start()
+	return runner.Start()
+}
+
+func (r *cronRunner) Start() error {
+	r.cron.Start()
 	return nil
 }
 
-func SendInformation(xlsxName, headMessage, bodyMessage string, sends ...string) {
-	m := gomail.NewMessage()
-	m.SetAddressHeader("From", types.Email.Sender, "Rancher Labs 中国")
-	m.SetHeader("To", sends...)
-	m.SetHeader("Subject", headMessage)
-	m.SetBody("text/plain", bodyMessage)
-	m.Attach(xlsxName)
-
-	d := gomail.NewDialer(
-		types.Email.Endpoint,
-		types.Email.Port,
-		types.Email.User,
-		types.Email.Password)
-
-	if err := d.DialAndSend(m); err != nil {
-		logrus.Errorf("Failed to send collect information email : %v", err)
-	} else {
-		logrus.Infof("Send collect information email success")
-	}
-
-}
-
-func DBSelect(sql, xlsxName string) (int, string) {
+func (r *cronRunner) DBSelect(sql, xlsxName string) (int, string) {
 	xlsx := excelize.NewFile()
 	index := xlsx.GetSheetIndex("Sheet1")
 	data := map[string]string{
@@ -121,17 +141,10 @@ func DBSelect(sql, xlsxName string) (int, string) {
 		"H1": "文档类型",
 	}
 
-	stmt, err := DB.Prepare(sql)
-	if err != nil {
-		logrus.Errorf("Failed to prepare SQL statement : %v", err)
-	}
-	defer stmt.Close()
-
-	rows, err := stmt.Query()
+	rows, err := r.cronDB.Raw(sql).Rows()
 	if nil != err {
 		logrus.Errorf("Failed to query : %v", err)
 	}
-	defer rows.Close()
 
 	kinds := types.GetKindDescription()
 

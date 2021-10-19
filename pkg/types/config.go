@@ -13,24 +13,31 @@ import (
 )
 
 var (
-	Aliyun = aliyun{}
-	DB     = db{}
-	Email  = email{}
+	Aliyun   = aliyun{}
+	DB       = db{}
+	Email    = email{}
+	Register = register{
+		Kinds: map[string]string{},
+	}
 	Config = config{
-		DB:     &DB,
-		SMTP:   &Email,
-		Aliyun: &Aliyun,
+		DB:       &DB,
+		SMTP:     &Email,
+		Aliyun:   &Aliyun,
+		Register: &Register,
 	}
 	ErrMissingRequired = errors.New("required field is missing")
 )
 
 type config struct {
+	Debug     bool            `json:"debug,omitempty" yaml:"debug"`
+	DryRun    bool            `json:"dryRun,omitempty" yaml:"dryRun"`
 	Port      int             `json:"port,omitempty" yaml:"port"`
-	Kinds     map[string]kind `json:"kinds,omitempty" yaml:"kinds"`
+	Kinds     map[string]Kind `json:"kinds,omitempty" yaml:"kinds"`
 	SMTP      *email          `json:"smtp,omitempty" yaml:"smtp"`
 	DB        *db             `json:"db,omitempty" yaml:"db"`
 	Aliyun    *aliyun         `json:"aliyun,omitempty" yaml:"aliyun"`
-	Documents []document      `json:"documents,omitempty" yaml:"documents"`
+	Documents []Document      `json:"documents,omitempty" yaml:"documents"`
+	Register  *register       `json:"register,omitempty" yaml:"register"`
 }
 
 type email struct {
@@ -53,6 +60,24 @@ func (e *email) Validate() error {
 		e.Sender != "" &&
 		e.CRONDaily != "" &&
 		e.CRONMonthly != "" {
+		return nil
+	}
+	return ErrMissingRequired
+}
+
+type register struct {
+	SenderName string            `json:"senderName,omitempty" yaml:"senderName"`
+	Subject    string            `json:"subject,omitempty" yaml:"subject"`
+	Receivers  []string          `json:"receivers,omitempty" yaml:"receivers"`
+	Template   string            `json:"template,omitempty" yaml:"template"`
+	Kinds      map[string]string `json:"kinds,omitempty" yaml:"kinds"`
+}
+
+func (r *register) Validate() error {
+	if len(r.Receivers) == 0 {
+		return nil
+	}
+	if r.Subject != "" && r.Template != "" {
 		return nil
 	}
 	return ErrMissingRequired
@@ -107,7 +132,7 @@ func (e *aliyun) Validate() error {
 	return errors.Wrap(ErrMissingRequired, "")
 }
 
-type kind struct {
+type Kind struct {
 	Header      string `json:"header,omitempty" yaml:"header"`
 	Footer      string `json:"footer,omitempty" yaml:"footer"`
 	Subject     string `json:"subject,omitempty" yaml:"subject"`
@@ -115,7 +140,7 @@ type kind struct {
 	Description string `json:"description,omitempty" yaml:"description"`
 }
 
-func (e *kind) Validate() error {
+func (e *Kind) Validate() error {
 	if e.Header != "" &&
 		e.Footer != "" &&
 		e.Subject != "" &&
@@ -125,7 +150,7 @@ func (e *kind) Validate() error {
 	return ErrMissingRequired
 }
 
-type document struct {
+type Document struct {
 	Name     string   `json:"name,omitempty" yaml:"name"`
 	Title    string   `json:"title,omitempty" yaml:"title"`
 	URL      string   `json:"url,omitempty" yaml:"url"`
@@ -136,32 +161,32 @@ type document struct {
 	OSSPathPrefixOverride string `json:"ossPathPrefixOverride,omitempty" yaml:"ossPathPrefixOverride"`
 }
 
-func (d document) Validate() error {
+func (d Document) Validate() error {
 	switch {
 	case d.Name == "":
-		return fmt.Errorf("document name is missing")
+		return fmt.Errorf("Document name is missing")
 	case d.URL != "": // Using direct URL for download
 		return nil
 	case d.Filename == "":
-		return fmt.Errorf("the filename for document %s is missing", d.Name)
+		return fmt.Errorf("the filename for Document %s is missing", d.Name)
 	case OSSBucketEndpoint != "": // Using oss to ge
 		exists, err := IsObjectExists(d.OSSPathPrefixOverride, d.Filename)
 		if err != nil {
 			return err
 		}
 		if !exists {
-			return fmt.Errorf("the document file %s does not exists in OSS ", d.Name)
+			return fmt.Errorf("the Document file %s does not exists in OSS ", d.Name)
 		}
 		return nil
 	}
 	return nil
 }
 
-// When generating document download link for email,
+// When generating Document download link for email,
 // we will use following priority for configuration.
 // 1. Direct URL from configuration with password.
 // 2. OSS gLobal Configuration.
-func (d document) GetLine(isPublic bool) string {
+func (d Document) GetLine(isPublic bool) string {
 	var fileURL string
 	switch {
 	case d.URL != "":
@@ -195,6 +220,9 @@ func (c *config) Validate() error {
 		return err
 	}
 	if err := c.Aliyun.Validate(); err != nil {
+		return err
+	}
+	if err := c.Register.Validate(); err != nil {
 		return err
 	}
 	for _, doc := range c.Documents {
@@ -245,11 +273,22 @@ func Validate() error {
 	return Config.Validate()
 }
 
-func IsKindValid(kind string) error {
+func IsKindValid(requester, kind string) error {
 	if kind == "" {
 		return errors.New("query kind is empty")
 	}
-	if _, ok := Config.Kinds[kind]; ok {
+	var ok bool
+	switch requester {
+	case "pdf":
+		_, ok = Config.Kinds[kind]
+	case "register":
+		_, ok = Config.Register.Kinds[kind]
+	default:
+		_, ok1 := Config.Kinds[kind]
+		_, ok2 := Config.Register.Kinds[kind]
+		ok = ok1 || ok2
+	}
+	if ok {
 		return nil
 	}
 	return fmt.Errorf("kind %s is not valid", kind)
@@ -279,4 +318,12 @@ func printConfig(ctx *cli.Context) error {
 	}
 	println(string(data))
 	return nil
+}
+
+func SetRunStatus(debug, dryRun bool) {
+	Config.DryRun = dryRun
+	Config.Debug = debug || dryRun
+	if Config.Debug {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 }

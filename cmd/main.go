@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/cnrancher/pdf-sender/pkg/apis"
+	"github.com/cnrancher/pdf-sender/pkg/email"
 	"github.com/cnrancher/pdf-sender/pkg/limiter"
 	"github.com/cnrancher/pdf-sender/pkg/types"
 	"github.com/sirupsen/logrus"
@@ -28,6 +29,10 @@ func main() {
 			Name:  "debug",
 			Usage: "Enable Debug log for pdf sender",
 		},
+		cli.BoolFlag{
+			Name:  "dry-run",
+			Usage: "dry-run mode will enable debug log and won't send anything",
+		},
 		cli.StringFlag{
 			Name:     "config-file,f",
 			Required: true,
@@ -48,11 +53,9 @@ func before(ctx *cli.Context) error {
 		return err
 	}
 
-	if ctx.GlobalBool("debug") {
-		logrus.SetLevel(logrus.DebugLevel)
-	}
+	types.SetRunStatus(ctx.GlobalBool("debug"), ctx.GlobalBool("dry-run"))
 
-	if err := apis.ConnectMysql(); err != nil {
+	if err := types.ConnectMysql(); err != nil {
 		return err
 	}
 
@@ -60,7 +63,7 @@ func before(ctx *cli.Context) error {
 		return err
 	}
 
-	if err := types.InitEmailBody(ctx); err != nil {
+	if err := email.InitEmailBody(ctx); err != nil {
 		return err
 	}
 
