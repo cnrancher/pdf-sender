@@ -21,7 +21,7 @@ func ConnectMysql() error {
 		DB.HostIP,
 		DB.Port,
 		DB.Name,
-		"LOCAL",
+		"Local",
 	)
 	logrus.Debugf("Connecting mysql with %s", dbinfo)
 	var err error
