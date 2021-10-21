@@ -19,7 +19,9 @@ import (
 
 var rows = []string{
 	"name",
+	"city",
 	"company",
+	"department",
 	"position",
 	"phone",
 	"email",
@@ -34,8 +36,10 @@ var (
 )
 
 const (
-	dayFormat   = "2006-01-02"
-	monthFormat = "2006-01"
+	dayFormat      = "2006-01-02"
+	monthFormat    = "2006-01"
+	codeCleanCron  = "0 * * * *"
+	codeDeleteCron = "30 0 * * *"
 )
 
 type cronRunner struct {
@@ -64,7 +68,9 @@ func StartCorn(ctx *cli.Context) error {
 			yesterday := time.Now().Add(d).Format(dayFormat)
 			today := time.Now().Format(dayFormat)
 			count, filename := runner.DBSelect(DaySQL, yesterday)
-			defer os.Remove(filename)
+			if !types.Config.Debug {
+				defer os.Remove(filename)
+			}
 
 			headMessage := fmt.Sprintf("%s 用户信息", yesterday)
 			bodyMessage := fmt.Sprintf("%s 08:00 ~ %s 08:00，一共有 %d 人下载了中文文档以及白皮书。\n", yesterday, today, count)
@@ -95,7 +101,9 @@ func StartCorn(ctx *cli.Context) error {
 			now := time.Now()
 			lastMonth := now.AddDate(0, -1, -now.Day()+1).Format(monthFormat)
 			count, filename := runner.DBSelect(MonSQL, lastMonth)
-			defer os.Remove(filename)
+			if !types.Config.Debug {
+				defer os.Remove(filename)
+			}
 
 			headMessage := fmt.Sprintf("%s月 全部用户信息", lastMonth)
 			bodyMessage := fmt.Sprintf("%s月一共有 %d 人下载了中文文档以及白皮书。\n", lastMonth, count)
@@ -118,6 +126,32 @@ func StartCorn(ctx *cli.Context) error {
 			return errors.Wrap(err, "Failed cron add function")
 		}
 	}
+	if types.Config.CodeClean {
+		logrus.Infof("adding code clean cron")
+		// code cron
+		if _, err := runner.cron.AddFunc(codeCleanCron, func() {
+			result := runner.cronDB.Model(&types.Code{}).Where("state = ? and request_time < DATE_SUB(NOW(),INTERVAL 1 HOUR)", "active").Update("state", "used")
+			if result.Error != nil {
+				logrus.Warnf("failed to clean useless code, %v", err)
+				return
+			}
+			logrus.Infof("%d codes have been cleaned", result.RowsAffected)
+		}); err != nil {
+			return errors.Wrap(err, "failed to add code clean cron function")
+		}
+
+		logrus.Infof("adding code delete cron")
+		if _, err := runner.cron.AddFunc(codeDeleteCron, func() {
+			result := runner.cronDB.Delete(&types.Code{}, "request_time < DATE_SUB(NOW(),INTERVAL 1 DAY)")
+			if result.Error != nil {
+				logrus.Warnf("failed to delete useless code, %v", err)
+				return
+			}
+			logrus.Infof("%d codes have been deleted", result.RowsAffected)
+		}); err != nil {
+			return errors.Wrap(err, "failed to add code delete cron function")
+		}
+	}
 
 	return runner.Start()
 }
@@ -130,16 +164,19 @@ func (r *cronRunner) Start() error {
 func (r *cronRunner) DBSelect(sql, xlsxName string) (int, string) {
 	xlsx := excelize.NewFile()
 	index := xlsx.GetSheetIndex("Sheet1")
-	data := map[string]string{
-		"A1": "名字",
-		"B1": "公司",
-		"C1": "职位",
-		"D1": "手机号",
-		"E1": "电子邮箱",
-		"F1": "保存时间",
-		"G1": "邮箱是否有效",
-		"H1": "文档类型",
-	}
+	data := tableWithHeader(0, 0, []string{
+		"名字",
+		"城市",
+		"公司",
+		"部门",
+		"职位",
+		"手机号",
+		"电子邮箱",
+		"保存时间",
+		"邮件已发送",
+		"访问功能",
+		"文档类型",
+	})
 
 	rows, err := r.cronDB.Raw(sql).Rows()
 	if nil != err {
@@ -152,19 +189,27 @@ func (r *cronRunner) DBSelect(sql, xlsxName string) (int, string) {
 	for rows.Next() {
 		count++
 		var user types.User
-		row := count + 1
-		err := rows.Scan(&user.Name, &user.Company, &user.Position, &user.Phone, &user.Email, &user.SaveTime, &user.Status, &user.Kind)
+		err := r.cronDB.ScanRows(rows, &user)
 		if err != nil {
 			logrus.Errorf("Failed rows scan : %v", err)
 		}
-		data["A"+strconv.Itoa(row)] = user.Name
-		data["B"+strconv.Itoa(row)] = user.Company
-		data["C"+strconv.Itoa(row)] = user.Position
-		data["D"+strconv.Itoa(row)] = user.Phone
-		data["E"+strconv.Itoa(row)] = user.Email
-		data["F"+strconv.Itoa(row)] = user.SaveTime.Format("2006-01-02 15:04:05")
-		data["G"+strconv.Itoa(row)] = strconv.FormatBool(user.Status)
-		data["H"+strconv.Itoa(row)] = kinds[user.Kind]
+		function := "pdf"
+		if _, ok := kinds[user.Kind]; !ok {
+			function = types.Config.Register.Kinds[user.Kind]
+		}
+		setRow(data, 0, count, []string{
+			user.Name,
+			user.City,
+			user.Company,
+			user.Department,
+			user.Position,
+			user.Phone,
+			user.Email,
+			user.SaveTime.Format("2006-01-02 15:04:05"),
+			strconv.FormatBool(user.Status),
+			function,
+			kinds[user.Kind],
+		})
 	}
 
 	for k, v := range data {
@@ -177,4 +222,27 @@ func (r *cronRunner) DBSelect(sql, xlsxName string) (int, string) {
 	}
 
 	return count, filename
+}
+
+// getTableHeader row and column begins with 0. Only support input len <= 26
+func tableWithHeader(row, column int, headers []string) map[string]string {
+	columnBegin := 'A'
+	rtn := map[string]string{}
+	currentColumn := column
+	for _, header := range headers {
+		key := fmt.Sprintf("%c%d", columnBegin+rune(currentColumn), row+1)
+		rtn[key] = header
+		currentColumn++
+	}
+	return rtn
+}
+
+func setRow(table map[string]string, column, row int, datas []string) {
+	columnBegin := 'A'
+	currentColumn := column
+	for _, data := range datas {
+		key := fmt.Sprintf("%c%d", columnBegin+rune(currentColumn), row+1)
+		table[key] = data
+		currentColumn++
+	}
 }

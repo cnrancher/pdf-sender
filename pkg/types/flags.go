@@ -17,6 +17,11 @@ func GetFlags() []cli.Flag {
 			Value:       8080,
 			Destination: &Config.Port,
 		},
+		cli.BoolTFlag{
+			Name:        "code-clean",
+			Destination: &Config.CodeClean,
+			Usage:       "clean up code data as hourly and daily",
+		},
 		cli.StringFlag{
 			Name:        "smtp-user",
 			EnvVar:      "SMTP_USER",

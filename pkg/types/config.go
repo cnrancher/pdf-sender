@@ -38,6 +38,7 @@ type config struct {
 	Aliyun    *aliyun         `json:"aliyun,omitempty" yaml:"aliyun"`
 	Documents []Document      `json:"documents,omitempty" yaml:"documents"`
 	Register  *register       `json:"register,omitempty" yaml:"register"`
+	CodeClean bool            `json:"codeClean,omitempty" yaml:"codeClean"`
 }
 
 type email struct {
