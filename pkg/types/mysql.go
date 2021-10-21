@@ -12,13 +12,15 @@ import (
 var DBInstance *gorm.DB
 
 func ConnectMysql() error {
+	//TODO localization should be able to configure
 	dbinfo := fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=true",
+		"%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=true&loc=%s",
 		DB.Username,
 		DB.Password,
 		DB.HostIP,
 		DB.Port,
 		DB.Name,
+		"Asia%2fShanghai",
 	)
 	logrus.Debugf("Connecting mysql with %s", dbinfo)
 	var err error

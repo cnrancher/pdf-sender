@@ -20,9 +20,6 @@ type Code struct {
 	State       string    `json:"-" gorm:"size:20;default:active;index:phone"`
 }
 
-type CodeContent struct {
-}
-
 func (c *Code) SaveAndSend() error {
 	if err := c.Save().Error; err != nil {
 		return err
