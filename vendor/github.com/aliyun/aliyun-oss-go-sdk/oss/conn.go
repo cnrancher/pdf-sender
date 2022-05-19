@@ -48,6 +48,7 @@ var signKeyList = []string{"acl", "uploads", "location", "cors",
 	"worm", "wormId", "wormExtend", "withHashContext",
 	"x-oss-enable-md5", "x-oss-enable-sha1", "x-oss-enable-sha256",
 	"x-oss-hash-ctx", "x-oss-md5-ctx", "transferAcceleration",
+	"regionList", "cloudboxes",
 }
 
 // init initializes Conn
@@ -90,7 +91,14 @@ func (conn Conn) Do(method, bucketName, objectName string, params map[string]int
 	urlParams := conn.getURLParams(params)
 	subResource := conn.getSubResource(params)
 	uri := conn.url.getURL(bucketName, objectName, urlParams)
-	resource := conn.getResource(bucketName, objectName, subResource)
+
+	resource := ""
+	if conn.config.AuthVersion != AuthV4 {
+		resource = conn.getResource(bucketName, objectName, subResource)
+	} else {
+		resource = conn.getResourceV4(bucketName, objectName, subResource)
+	}
+
 	return conn.doRequest(method, uri, resource, headers, data, initCRC, listener)
 }
 
@@ -182,7 +190,7 @@ func (conn Conn) getURLParams(params map[string]interface{}) string {
 			buf.WriteByte('&')
 		}
 		buf.WriteString(url.QueryEscape(k))
-		if params[k] != nil {
+		if params[k] != nil && params[k].(string) != "" {
 			buf.WriteString("=" + strings.Replace(url.QueryEscape(params[k].(string)), "+", "%20", -1))
 		}
 	}
@@ -195,7 +203,7 @@ func (conn Conn) getSubResource(params map[string]interface{}) string {
 	keys := make([]string, 0, len(params))
 	signParams := make(map[string]string)
 	for k := range params {
-		if conn.config.AuthVersion == AuthV2 {
+		if conn.config.AuthVersion == AuthV2 || conn.config.AuthVersion == AuthV4 {
 			encodedKey := url.QueryEscape(k)
 			keys = append(keys, encodedKey)
 			if params[k] != nil && params[k] != "" {
@@ -218,7 +226,9 @@ func (conn Conn) getSubResource(params map[string]interface{}) string {
 		}
 		buf.WriteString(k)
 		if _, ok := signParams[k]; ok {
-			buf.WriteString("=" + signParams[k])
+			if signParams[k] != "" {
+				buf.WriteString("=" + signParams[k])
+			}
 		}
 	}
 	return buf.String()
@@ -250,6 +260,25 @@ func (conn Conn) getResource(bucketName, objectName, subResource string) string 
 	return fmt.Sprintf("/%s/%s%s", bucketName, objectName, subResource)
 }
 
+// getResource gets canonicalized resource
+func (conn Conn) getResourceV4(bucketName, objectName, subResource string) string {
+	if subResource != "" {
+		subResource = "?" + subResource
+	}
+
+	if bucketName == "" {
+		return fmt.Sprintf("/%s", subResource)
+	}
+
+	if objectName != "" {
+		objectName = url.QueryEscape(objectName)
+		objectName = strings.Replace(objectName, "+", "%20", -1)
+		objectName = strings.Replace(objectName, "%2F", "/", -1)
+		return fmt.Sprintf("/%s/%s%s", bucketName, objectName, subResource)
+	}
+	return fmt.Sprintf("/%s/%s", bucketName, subResource)
+}
+
 func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource string, headers map[string]string,
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
 	method = strings.ToUpper(method)
@@ -278,10 +307,14 @@ func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource st
 		req.Header.Set("Proxy-Authorization", basic)
 	}
 
-	date := time.Now().UTC().Format(http.TimeFormat)
-	req.Header.Set(HTTPHeaderDate, date)
+	stNow := time.Now().UTC()
+	req.Header.Set(HTTPHeaderDate, stNow.Format(http.TimeFormat))
 	req.Header.Set(HTTPHeaderHost, req.Host)
 	req.Header.Set(HTTPHeaderUserAgent, conn.config.UserAgent)
+
+	if conn.config.AuthVersion == AuthV4 {
+		req.Header.Set(HttpHeaderOssContentSha256, DefaultContentSha256)
+	}
 
 	akIf := conn.config.GetCredentials()
 	if akIf.GetSecurityToken() != "" {
@@ -468,58 +501,111 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 	var srvCRC uint64
 
 	statusCode := resp.StatusCode
-	if statusCode >= 400 && statusCode <= 505 {
-		// 4xx and 5xx indicate that the operation has error occurred
-		var respBody []byte
-		respBody, err := readResponseBody(resp)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(respBody) == 0 {
-			err = ServiceError{
-				StatusCode: statusCode,
-				RequestID:  resp.Header.Get(HTTPHeaderOssRequestID),
+	if statusCode/100 != 2 {
+		if statusCode >= 400 && statusCode <= 505 {
+			// 4xx and 5xx indicate that the operation has error occurred
+			var respBody []byte
+			respBody, err := readResponseBody(resp)
+			if err != nil {
+				return nil, err
 			}
-		} else {
-			// Response contains storage service error object, unmarshal
-			srvErr, errIn := serviceErrFromXML(respBody, resp.StatusCode,
-				resp.Header.Get(HTTPHeaderOssRequestID))
-			if errIn != nil { // error unmarshaling the error response
-				err = fmt.Errorf("oss: service returned invalid response body, status = %s, RequestId = %s", resp.Status, resp.Header.Get(HTTPHeaderOssRequestID))
+
+			if len(respBody) == 0 {
+				err = ServiceError{
+					StatusCode: statusCode,
+					RequestID:  resp.Header.Get(HTTPHeaderOssRequestID),
+				}
 			} else {
-				err = srvErr
+				// Response contains storage service error object, unmarshal
+				srvErr, errIn := serviceErrFromXML(respBody, resp.StatusCode,
+					resp.Header.Get(HTTPHeaderOssRequestID))
+				if errIn != nil { // error unmarshaling the error response
+					err = fmt.Errorf("oss: service returned invalid response body, status = %s, RequestId = %s", resp.Status, resp.Header.Get(HTTPHeaderOssRequestID))
+				} else {
+					err = srvErr
+				}
 			}
+
+			return &Response{
+				StatusCode: resp.StatusCode,
+				Headers:    resp.Header,
+				Body:       ioutil.NopCloser(bytes.NewReader(respBody)), // restore the body
+			}, err
+		} else if statusCode >= 300 && statusCode <= 307 {
+			// OSS use 3xx, but response has no body
+			err := fmt.Errorf("oss: service returned %d,%s", resp.StatusCode, resp.Status)
+			return &Response{
+				StatusCode: resp.StatusCode,
+				Headers:    resp.Header,
+				Body:       resp.Body,
+			}, err
+		} else {
+			// (0,300) [308,400) [506,)
+			// Other extended http StatusCode
+			var respBody []byte
+			respBody, err := readResponseBody(resp)
+			if err != nil {
+				return &Response{StatusCode: resp.StatusCode, Headers: resp.Header, Body: ioutil.NopCloser(bytes.NewReader(respBody))}, err
+			}
+
+			if len(respBody) == 0 {
+				err = ServiceError{
+					StatusCode: statusCode,
+					RequestID:  resp.Header.Get(HTTPHeaderOssRequestID),
+				}
+			} else {
+				// Response contains storage service error object, unmarshal
+				srvErr, errIn := serviceErrFromXML(respBody, resp.StatusCode,
+					resp.Header.Get(HTTPHeaderOssRequestID))
+				if errIn != nil { // error unmarshaling the error response
+					err = fmt.Errorf("unkown response body, status = %s, RequestId = %s", resp.Status, resp.Header.Get(HTTPHeaderOssRequestID))
+				} else {
+					err = srvErr
+				}
+			}
+
+			return &Response{
+				StatusCode: resp.StatusCode,
+				Headers:    resp.Header,
+				Body:       ioutil.NopCloser(bytes.NewReader(respBody)), // restore the body
+			}, err
+		}
+	} else {
+		if conn.config.IsEnableCRC && crc != nil {
+			cliCRC = crc.Sum64()
+		}
+		srvCRC, _ = strconv.ParseUint(resp.Header.Get(HTTPHeaderOssCRC64), 10, 64)
+
+		realBody := resp.Body
+		if conn.isDownloadLimitResponse(resp) {
+			limitReader := &LimitSpeedReader{
+				reader:     realBody,
+				ossLimiter: conn.config.DownloadLimiter,
+			}
+			realBody = limitReader
 		}
 
+		// 2xx, successful
 		return &Response{
 			StatusCode: resp.StatusCode,
 			Headers:    resp.Header,
-			Body:       ioutil.NopCloser(bytes.NewReader(respBody)), // restore the body
-		}, err
-	} else if statusCode >= 300 && statusCode <= 307 {
-		// OSS use 3xx, but response has no body
-		err := fmt.Errorf("oss: service returned %d,%s", resp.StatusCode, resp.Status)
-		return &Response{
-			StatusCode: resp.StatusCode,
-			Headers:    resp.Header,
-			Body:       resp.Body,
-		}, err
+			Body:       realBody,
+			ClientCRC:  cliCRC,
+			ServerCRC:  srvCRC,
+		}, nil
+	}
+}
+
+// isUploadLimitReq: judge limit upload speed or not
+func (conn Conn) isDownloadLimitResponse(resp *http.Response) bool {
+	if resp == nil || conn.config.DownloadLimitSpeed == 0 || conn.config.DownloadLimiter == nil {
+		return false
 	}
 
-	if conn.config.IsEnableCRC && crc != nil {
-		cliCRC = crc.Sum64()
+	if strings.EqualFold(resp.Request.Method, "GET") {
+		return true
 	}
-	srvCRC, _ = strconv.ParseUint(resp.Header.Get(HTTPHeaderOssCRC64), 10, 64)
-
-	// 2xx, successful
-	return &Response{
-		StatusCode: resp.StatusCode,
-		Headers:    resp.Header,
-		Body:       resp.Body,
-		ClientCRC:  cliCRC,
-		ServerCRC:  srvCRC,
-	}, nil
+	return false
 }
 
 // LoggerHTTPReq Print the header information of the http request
@@ -792,5 +878,39 @@ func (um urlMaker) buildURL(bucket, object string) (string, string) {
 		}
 	}
 
+	return host, path
+}
+
+// buildURL builds URL
+func (um urlMaker) buildURLV4(bucket, object string) (string, string) {
+	var host = ""
+	var path = ""
+
+	object = url.QueryEscape(object)
+	object = strings.Replace(object, "+", "%20", -1)
+
+	// no escape /
+	object = strings.Replace(object, "%2F", "/", -1)
+
+	if um.Type == urlTypeCname {
+		host = um.NetLoc
+		path = "/" + object
+	} else if um.Type == urlTypeIP {
+		if bucket == "" {
+			host = um.NetLoc
+			path = "/"
+		} else {
+			host = um.NetLoc
+			path = fmt.Sprintf("/%s/%s", bucket, object)
+		}
+	} else {
+		if bucket == "" {
+			host = um.NetLoc
+			path = "/"
+		} else {
+			host = bucket + "." + um.NetLoc
+			path = fmt.Sprintf("/%s/%s", bucket, object)
+		}
+	}
 	return host, path
 }

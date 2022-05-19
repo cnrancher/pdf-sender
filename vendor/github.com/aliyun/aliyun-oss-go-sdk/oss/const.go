@@ -203,6 +203,9 @@ const (
 	HTTPHeaderOssTaskID                      = "X-Oss-Task-Id"
 	HTTPHeaderOssHashCtx                     = "X-Oss-Hash-Ctx"
 	HTTPHeaderOssMd5Ctx                      = "X-Oss-Md5-Ctx"
+	HTTPHeaderAllowSameActionOverLap         = "X-Oss-Allow-Same-Action-Overlap"
+	HttpHeaderOssDate                        = "X-Oss-Date"
+	HttpHeaderOssContentSha256               = "X-Oss-Content-Sha256"
 )
 
 // HTTP Param
@@ -234,7 +237,9 @@ const (
 
 	NullVersion = "null"
 
-	Version = "v2.1.8" // Go SDK version
+	DefaultContentSha256 = "UNSIGNED-PAYLOAD" // for v4 signature
+
+	Version = "v2.2.3" // Go SDK version
 )
 
 // FrameType
@@ -254,4 +259,6 @@ const (
 	AuthV1 AuthVersionType = "v1"
 	// AuthV2 v2
 	AuthV2 AuthVersionType = "v2"
+	// AuthV4 v4
+	AuthV4 AuthVersionType = "v4"
 )

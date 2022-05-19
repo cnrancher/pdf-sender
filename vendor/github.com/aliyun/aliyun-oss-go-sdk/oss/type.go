@@ -29,6 +29,28 @@ type BucketProperties struct {
 	StorageClass string    `xml:"StorageClass"` // Bucket storage class
 }
 
+// ListCloudBoxesResult defines the result object from ListBuckets request
+type ListCloudBoxResult struct {
+	XMLName     xml.Name             `xml:"ListCloudBoxResult"`
+	Prefix      string               `xml:"Prefix"`              // The prefix in this query
+	Marker      string               `xml:"Marker"`              // The marker filter
+	MaxKeys     int                  `xml:"MaxKeys"`             // The max entry count to return. This information is returned when IsTruncated is true.
+	IsTruncated bool                 `xml:"IsTruncated"`         // Flag true means there's remaining cloudboxes to return.
+	NextMarker  string               `xml:"NextMarker"`          // The marker filter for the next list call
+	Owner       string               `xml:"Owner"`               // The owner information
+	CloudBoxes  []CloudBoxProperties `xml:"CloudBoxes>CloudBox"` // The cloudbox list
+}
+
+// CloudBoxProperties defines cloudbox properties
+type CloudBoxProperties struct {
+	XMLName         xml.Name `xml:"CloudBox"`
+	ID              string   `xml:"ID"`
+	Name            string   `xml:"Name"`
+	Region          string   `xml:"Region"`
+	ControlEndpoint string   `xml:"ControlEndpoint"`
+	DataEndpoint    string   `xml:"DataEndpoint"`
+}
+
 // GetBucketACLResult defines GetBucketACL request's result
 type GetBucketACLResult struct {
 	XMLName xml.Name `xml:"AccessControlPolicy"`
@@ -96,6 +118,7 @@ type LifecycleVersionTransition struct {
 }
 
 const iso8601DateFormat = "2006-01-02T15:04:05.000Z"
+const iso8601DateFormatSecond = "2006-01-02T15:04:05Z"
 
 // BuildLifecycleRuleByDays builds a lifecycle rule objects will expiration in days after the last modified time
 func BuildLifecycleRuleByDays(id, prefix string, status bool, days int) LifecycleRule {
@@ -296,18 +319,20 @@ type GetBucketInfoResult struct {
 
 // BucketInfo defines Bucket information
 type BucketInfo struct {
-	XMLName          xml.Name  `xml:"Bucket"`
-	Name             string    `xml:"Name"`                     // Bucket name
-	Location         string    `xml:"Location"`                 // Bucket datacenter
-	CreationDate     time.Time `xml:"CreationDate"`             // Bucket creation time
-	ExtranetEndpoint string    `xml:"ExtranetEndpoint"`         // Bucket external endpoint
-	IntranetEndpoint string    `xml:"IntranetEndpoint"`         // Bucket internal endpoint
-	ACL              string    `xml:"AccessControlList>Grant"`  // Bucket ACL
-	RedundancyType   string    `xml:"DataRedundancyType"`       // Bucket DataRedundancyType
-	Owner            Owner     `xml:"Owner"`                    // Bucket owner
-	StorageClass     string    `xml:"StorageClass"`             // Bucket storage class
-	SseRule          SSERule   `xml:"ServerSideEncryptionRule"` // Bucket ServerSideEncryptionRule
-	Versioning       string    `xml:"Versioning"`               // Bucket Versioning
+	XMLName                xml.Name  `xml:"Bucket"`
+	Name                   string    `xml:"Name"`                     // Bucket name
+	Location               string    `xml:"Location"`                 // Bucket datacenter
+	CreationDate           time.Time `xml:"CreationDate"`             // Bucket creation time
+	ExtranetEndpoint       string    `xml:"ExtranetEndpoint"`         // Bucket external endpoint
+	IntranetEndpoint       string    `xml:"IntranetEndpoint"`         // Bucket internal endpoint
+	ACL                    string    `xml:"AccessControlList>Grant"`  // Bucket ACL
+	RedundancyType         string    `xml:"DataRedundancyType"`       // Bucket DataRedundancyType
+	Owner                  Owner     `xml:"Owner"`                    // Bucket owner
+	StorageClass           string    `xml:"StorageClass"`             // Bucket storage class
+	SseRule                SSERule   `xml:"ServerSideEncryptionRule"` // Bucket ServerSideEncryptionRule
+	Versioning             string    `xml:"Versioning"`               // Bucket Versioning
+	TransferAcceleration   string    `xml:"TransferAcceleration"`     // bucket TransferAcceleration
+	CrossRegionReplication string    `xml:"CrossRegionReplication"`   // bucket CrossRegionReplication
 }
 
 type SSERule struct {
@@ -1251,4 +1276,10 @@ type WormConfiguration struct {
 type TransferAccConfiguration struct {
 	XMLName xml.Name `xml:"TransferAccelerationConfiguration"`
 	Enabled bool     `xml:"Enabled"`
+}
+
+// ReplicationXML defines simple replication xml, and ReplicationXML is used for "DeleteBucketReplication" in client.go
+type ReplicationXML struct {
+	XMLName xml.Name `xml:"ReplicationRules"`
+	ID      string   `xml:"ID,omitempty"`
 }
