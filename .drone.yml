@@ -65,7 +65,6 @@ steps:
     settings:
       build_args:
         - ARCH=amd64
-      custom_dns: 1.1.1.1
       dockerfile: package/Dockerfile
       tag: latest
       password:
@@ -74,18 +73,17 @@ steps:
       username:
         from_secret: docker_username
     when:
-      ref:
-        include:
-          - "refs/heads/master"
       event:
         - push
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
 
   - name: docker-publish
     image: plugins/docker
     settings:
       build_args:
         - ARCH=amd64
-      custom_dns: 1.1.1.1
       dockerfile: package/Dockerfile
       password:
         from_secret: docker_password
@@ -96,6 +94,9 @@ steps:
     when:
       event:
         - tag
+    volumes:
+      - name: docker
+        path: /var/run/docker.sock
 
 volumes:
   - name: docker
@@ -106,3 +107,5 @@ trigger:
   event:
     exclude:
       - promote
+  branch:
+    - master
