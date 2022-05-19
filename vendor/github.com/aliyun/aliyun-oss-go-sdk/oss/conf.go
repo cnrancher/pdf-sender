@@ -34,6 +34,7 @@ type HTTPTimeout struct {
 type HTTPMaxConns struct {
 	MaxIdleConns        int
 	MaxIdleConnsPerHost int
+	MaxConnsPerHost     int
 }
 
 // CredentialInf is interface for get AccessKeyID,AccessKeySecret,SecurityToken
@@ -97,12 +98,18 @@ type Config struct {
 	Logger              *log.Logger         // For write log
 	UploadLimitSpeed    int                 // Upload limit speed:KB/s, 0 is unlimited
 	UploadLimiter       *OssLimiter         // Bandwidth limit reader for upload
+	DownloadLimitSpeed  int                 // Download limit speed:KB/s, 0 is unlimited
+	DownloadLimiter     *OssLimiter         // Bandwidth limit reader for download
 	CredentialsProvider CredentialsProvider // User provides interface to get AccessKeyID, AccessKeySecret, SecurityToken
 	LocalAddr           net.Addr            // local client host info
 	UserSetUa           bool                // UserAgent is set by user or not
-	AuthVersion         AuthVersionType     //  v1 or v2 signature,default is v1
+	AuthVersion         AuthVersionType     //  v1 or v2, v4 signature,default is v1
 	AdditionalHeaders   []string            //  special http headers needed to be sign
 	RedirectEnabled     bool                //  only effective from go1.7 onward, enable http redirect or not
+	InsecureSkipVerify  bool                //  for https, Whether to skip verifying the server certificate file
+	Region              string              //  such as cn-hangzhou
+	CloudBoxId          string              //
+	Product             string              //  oss or oss-cloudbox, default is oss
 }
 
 // LimitUploadSpeed uploadSpeed:KB/s, 0 is unlimited,default is 0
@@ -123,6 +130,24 @@ func (config *Config) LimitUploadSpeed(uploadSpeed int) error {
 	return err
 }
 
+// LimitDownLoadSpeed downloadSpeed:KB/s, 0 is unlimited,default is 0
+func (config *Config) LimitDownloadSpeed(downloadSpeed int) error {
+	if downloadSpeed < 0 {
+		return fmt.Errorf("invalid argument, the value of downloadSpeed is less than 0")
+	} else if downloadSpeed == 0 {
+		config.DownloadLimitSpeed = 0
+		config.DownloadLimiter = nil
+		return nil
+	}
+
+	var err error
+	config.DownloadLimiter, err = GetOssLimiter(downloadSpeed)
+	if err == nil {
+		config.DownloadLimitSpeed = downloadSpeed
+	}
+	return err
+}
+
 // WriteLog output log function
 func (config *Config) WriteLog(LogLevel int, format string, a ...interface{}) {
 	if config.LogLevel < LogLevel || config.Logger == nil {
@@ -138,6 +163,22 @@ func (config *Config) WriteLog(LogLevel int, format string, a ...interface{}) {
 // for get Credentials
 func (config *Config) GetCredentials() Credentials {
 	return config.CredentialsProvider.GetCredentials()
+}
+
+// for get Sign Product
+func (config *Config) GetSignProduct() string {
+	if config.CloudBoxId != "" {
+		return "oss-cloudbox"
+	}
+	return "oss"
+}
+
+// for get Sign Region
+func (config *Config) GetSignRegion() string {
+	if config.CloudBoxId != "" {
+		return config.CloudBoxId
+	}
+	return config.Region
 }
 
 // getDefaultOssConfig gets the default configuration.
@@ -180,6 +221,9 @@ func getDefaultOssConfig() *Config {
 
 	config.AuthVersion = AuthV1
 	config.RedirectEnabled = true
+	config.InsecureSkipVerify = false
+
+	config.Product = "oss"
 
 	return &config
 }
