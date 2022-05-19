@@ -78,35 +78,40 @@ func GetFlags() []cli.Flag {
 		},
 
 		cli.StringFlag{
+			Name:        "db-kind",
+			EnvVar:      "DB_KIND",
+			Usage:       "the database kind, can be mysql or pgsql",
+			Destination: &DB.Kind,
+		},
+		cli.StringFlag{
 			Name:        "db-host-ip",
 			EnvVar:      "DB_HOST_IP",
-			Usage:       "The backend mysql hostname or IP.",
+			Usage:       "The backend db hostname or IP.",
 			Destination: &DB.HostIP,
 		},
 		cli.IntFlag{
 			Name:        "db-port",
 			EnvVar:      "DB_PORT",
-			Usage:       "The backend mysql port.",
+			Usage:       "The backend db port.",
 			Destination: &DB.Port,
-			Value:       3306,
 		},
 		cli.StringFlag{
 			Name:        "db-name",
 			EnvVar:      "DB_NAME",
-			Usage:       "The db name of mysql backend.",
+			Usage:       "The db name of db backend.",
 			Destination: &DB.Name,
 			Value:       "pdf",
 		},
 		cli.StringFlag{
 			Name:        "db-username",
 			EnvVar:      "DB_USERNAME",
-			Usage:       "The username of mysql backend.",
+			Usage:       "The username of db backend.",
 			Destination: &DB.Username,
 		},
 		cli.StringFlag{
 			Name:        "db-password",
 			EnvVar:      "DB_PASSWORD",
-			Usage:       "The password of mysql user.",
+			Usage:       "The password of db user.",
 			Destination: &DB.Password,
 		},
 		cli.StringFlag{

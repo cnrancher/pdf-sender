@@ -55,7 +55,7 @@ func before(ctx *cli.Context) error {
 
 	types.SetRunStatus(ctx.GlobalBool("debug"), ctx.GlobalBool("dry-run"))
 
-	if err := types.ConnectMysql(); err != nil {
+	if err := types.ConnectDB(); err != nil {
 		return err
 	}
 
