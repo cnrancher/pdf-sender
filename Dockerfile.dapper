@@ -1,4 +1,15 @@
-FROM reg.cnrancher.com/cnrancher/dapper-base:golang-1.15.6-alpine3.12
+FROM registry.suse.com/bci/golang:1.17
+ARG PROXY
+ARG GOPROXY
+RUN zypper -n install netcat wget curl
+RUN zypper install -y -f docker
+ENV GO111MODULE=on
+## install golangci-lint
+RUN if [ "$(go env GOARCH)" = "amd64" ]; then \
+    export HTTPS_PROXY=${PROXY}; \
+    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.44.0; \
+    golangci-lint --version; \
+    fi
 
 ENV DAPPER_ENV REPO TAG DRONE_TAG
 ENV DAPPER_SOURCE /go/src/github.com/cnrancher/pdf-sender/

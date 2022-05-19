@@ -85,6 +85,7 @@ func (r *register) Validate() error {
 }
 
 type db struct {
+	Kind     string `json:"kind,omitempty" yaml:"kind"`
 	HostIP   string `json:"hostIp,omitempty" yaml:"hostIp"`
 	Port     int    `json:"port,omitempty" yaml:"port"`
 	Username string `json:"username,omitempty" yaml:"username"`

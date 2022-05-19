@@ -3,3 +3,4 @@
 /dist
 .dapper
 test-config.yml
+.vscode
