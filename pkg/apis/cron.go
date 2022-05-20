@@ -130,7 +130,7 @@ func StartCorn(ctx *cli.Context) error {
 		logrus.Infof("adding code clean cron")
 		// code cron
 		if _, err := runner.cron.AddFunc(codeCleanCron, func() {
-			result := runner.cronDB.Model(&types.Code{}).Where("state = ? and request_time < DATE_SUB(NOW(),INTERVAL 1 HOUR)", "active").Update("state", "used")
+			result := runner.cronDB.Model(&types.Code{}).Where("state = ? and request_time < "+getDateFromNowString("1 hour"), "active").Update("state", "used")
 			if result.Error != nil {
 				logrus.Warnf("failed to clean useless code, %v", err)
 				return
@@ -142,7 +142,7 @@ func StartCorn(ctx *cli.Context) error {
 
 		logrus.Infof("adding code delete cron")
 		if _, err := runner.cron.AddFunc(codeDeleteCron, func() {
-			result := runner.cronDB.Delete(&types.Code{}, "request_time < DATE_SUB(NOW(),INTERVAL 1 DAY)")
+			result := runner.cronDB.Delete(&types.Code{}, "request_time < "+getDateFromNowString("1 day"))
 			if result.Error != nil {
 				logrus.Warnf("failed to delete useless code, %v", err)
 				return
@@ -245,4 +245,12 @@ func setRow(table map[string]string, column, row int, datas []string) {
 		table[key] = data
 		currentColumn++
 	}
+}
+
+func getDateFromNowString(interval string) string {
+	if types.DB.Kind == "pgsql" {
+		return fmt.Sprintf("NOW() - interval '%s'", interval)
+	}
+	// default to mysql
+	return fmt.Sprintf("DATE_SUB(NOW(),INTERVAL %s)", interval)
 }
