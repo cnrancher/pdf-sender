@@ -30,11 +30,6 @@ var rows = []string{
 	"kind",
 }
 
-var (
-	DaySQL = "SELECT " + strings.Join(rows, ",") + " FROM user WHERE date(savetime) = date_sub(curdate(),interval 1 day)"
-	MonSQL = "SELECT " + strings.Join(rows, ",") + " FROM user WHERE PERIOD_DIFF(DATE_FORMAT(NOW(),'%Y%m'),DATE_FORMAT(savetime,'%Y%m')) = 1"
-)
-
 const (
 	dayFormat      = "2006-01-02"
 	monthFormat    = "2006-01"
@@ -67,7 +62,7 @@ func StartCorn(ctx *cli.Context) error {
 			}
 			yesterday := time.Now().Add(d).Format(dayFormat)
 			today := time.Now().Format(dayFormat)
-			count, filename := runner.DBSelect(DaySQL, yesterday)
+			count, filename := runner.DBSelect(getDayCronSQL(), yesterday)
 			if !types.Config.Debug {
 				defer os.Remove(filename)
 			}
@@ -100,7 +95,7 @@ func StartCorn(ctx *cli.Context) error {
 
 			now := time.Now()
 			lastMonth := now.AddDate(0, -1, -now.Day()+1).Format(monthFormat)
-			count, filename := runner.DBSelect(MonSQL, lastMonth)
+			count, filename := runner.DBSelect(getMonthCronSQL(), lastMonth)
 			if !types.Config.Debug {
 				defer os.Remove(filename)
 			}
@@ -253,4 +248,28 @@ func getDateFromNowString(interval string) string {
 	}
 	// default to mysql
 	return fmt.Sprintf("DATE_SUB(NOW(),INTERVAL %s)", interval)
+}
+
+func getDayCronSQL() string {
+	if types.DB.Kind == "pgsql" {
+		return fmt.Sprintf(
+			"SELECT %s FROM %s.public.user WHERE date_trunc('day',savetime) = date_trunc('day', %s )",
+			strings.Join(rows, ","),
+			types.DB.Name,
+			getDateFromNowString("1 day"),
+		)
+	}
+	return "SELECT " + strings.Join(rows, ",") + " FROM user WHERE date(savetime) = date_sub(curdate(),interval 1 day)"
+}
+
+func getMonthCronSQL() string {
+	if types.DB.Kind == "pgsql" {
+		return fmt.Sprintf(
+			"SELECT %s FROM %s.public.user WHERE date_trunc('month',savetime) = date_trunc('month', %s)",
+			strings.Join(rows, ","),
+			types.DB.Name,
+			getDateFromNowString("1 month"),
+		)
+	}
+	return "SELECT " + strings.Join(rows, ",") + " FROM user WHERE PERIOD_DIFF(DATE_FORMAT(NOW(),'%Y%m'),DATE_FORMAT(savetime,'%Y%m')) = 1"
 }
