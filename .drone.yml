@@ -109,3 +109,6 @@ trigger:
       - promote
   branch:
     - master
+
+node:
+  instance: agent-amd64
